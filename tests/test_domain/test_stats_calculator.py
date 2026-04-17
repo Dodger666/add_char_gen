@@ -1,0 +1,338 @@
+"""Tests for DerivedStatsCalculator."""
+
+import pytest
+
+from osric_character_gen.domain.stats_calculator import DerivedStatsCalculator
+from osric_character_gen.models.character import (
+    AbilityScores,
+    AncestryName,
+    ArmorItem,
+    ClassName,
+    EquipmentItem,
+    ThiefSkills,
+)
+
+
+@pytest.fixture
+def calc() -> DerivedStatsCalculator:
+    return DerivedStatsCalculator()
+
+
+class TestAbilityBonuses:
+    def test_average_scores(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=10,
+            dexterity=10,
+            constitution=10,
+            intelligence=10,
+            wisdom=10,
+            charisma=10,
+        )
+        bonuses = calc.calculate_ability_bonuses(scores, ClassName.FIGHTER)
+        assert bonuses.str_to_hit == 0
+        assert bonuses.str_damage == 0
+        assert bonuses.str_minor_test == "1-2"
+        assert bonuses.str_major_test == "2%"
+        assert bonuses.dex_ac_adj == 0
+        assert bonuses.con_hp_mod == 0
+
+    def test_high_str_fighter(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=18,
+            dexterity=10,
+            constitution=10,
+            intelligence=10,
+            wisdom=10,
+            charisma=10,
+            exceptional_strength=75,
+        )
+        bonuses = calc.calculate_ability_bonuses(scores, ClassName.FIGHTER)
+        assert bonuses.str_to_hit == 2
+        assert bonuses.str_damage == 3
+        assert bonuses.str_encumbrance == 160
+        assert bonuses.str_minor_test == "1-4"
+        assert bonuses.str_major_test == "25%"
+
+    def test_exceptional_str_100(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=18,
+            dexterity=10,
+            constitution=10,
+            intelligence=10,
+            wisdom=10,
+            charisma=10,
+            exceptional_strength=100,
+        )
+        bonuses = calc.calculate_ability_bonuses(scores, ClassName.FIGHTER)
+        assert bonuses.str_to_hit == 3
+        assert bonuses.str_damage == 6
+        assert bonuses.str_minor_test == "1-5**"
+        assert bonuses.str_major_test == "40%"
+
+    def test_fighter_con_17_gets_plus3(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=10,
+            dexterity=10,
+            constitution=17,
+            intelligence=10,
+            wisdom=10,
+            charisma=10,
+        )
+        bonuses = calc.calculate_ability_bonuses(scores, ClassName.FIGHTER)
+        assert bonuses.con_hp_mod == 3
+
+    def test_nonfighter_con_17_gets_plus2(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=10,
+            dexterity=10,
+            constitution=17,
+            intelligence=10,
+            wisdom=10,
+            charisma=10,
+        )
+        bonuses = calc.calculate_ability_bonuses(scores, ClassName.CLERIC)
+        assert bonuses.con_hp_mod == 2
+
+    def test_high_dex_ac(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=10,
+            dexterity=18,
+            constitution=10,
+            intelligence=10,
+            wisdom=10,
+            charisma=10,
+        )
+        bonuses = calc.calculate_ability_bonuses(scores, ClassName.THIEF)
+        assert bonuses.dex_ac_adj == -4  # descending (better)
+
+    def test_wisdom_bonus_spells(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=10,
+            dexterity=10,
+            constitution=10,
+            intelligence=10,
+            wisdom=16,
+            charisma=10,
+        )
+        bonuses = calc.calculate_ability_bonuses(scores, ClassName.CLERIC)
+        assert bonuses.wis_mental_save == 2
+        assert len(bonuses.wis_bonus_spells) == 4  # +1 lvl1, +1 lvl1, +1 lvl2, +1 lvl2
+
+
+class TestArmorClass:
+    def test_no_armor(self, calc: DerivedStatsCalculator) -> None:
+        desc, asc = calc.calculate_armor_class(None, None, 0)
+        assert desc == 10
+        assert asc == 10
+
+    def test_chain_mail(self, calc: DerivedStatsCalculator) -> None:
+        armor = ArmorItem(
+            name="Chain Mail",
+            ac_desc=5,
+            ac_asc=15,
+            weight=30.0,
+            cost_gp=75.0,
+            movement_cap=90,
+        )
+        desc, asc = calc.calculate_armor_class(armor, None, 0)
+        assert desc == 5
+        assert asc == 15
+
+    def test_chain_mail_with_shield_and_dex(
+        self,
+        calc: DerivedStatsCalculator,
+    ) -> None:
+        armor = ArmorItem(
+            name="Chain Mail",
+            ac_desc=5,
+            ac_asc=15,
+            weight=30.0,
+            cost_gp=75.0,
+            movement_cap=90,
+        )
+        shield = EquipmentItem(name="Small Shield", weight=5.0, cost_gp=10.0)
+        desc, asc = calc.calculate_armor_class(armor, shield, -2)
+        assert desc == 2  # 5 - 1 (shield) - 2 (DEX)
+        assert asc == 18
+
+
+class TestSavingThrows:
+    def test_fighter_level_1(self, calc: DerivedStatsCalculator) -> None:
+        saves = calc.calculate_saving_throws(ClassName.FIGHTER, 1, 0)
+        assert saves.aimed_magic_items == 16
+        assert saves.breath_weapons == 17
+        assert saves.death_paralysis_poison == 14
+        assert saves.petrifaction_polymorph == 15
+        assert saves.spells == 17
+
+    def test_wis_modifier_applies_to_spells(
+        self,
+        calc: DerivedStatsCalculator,
+    ) -> None:
+        saves = calc.calculate_saving_throws(ClassName.CLERIC, 1, 3)
+        assert saves.spells == 12  # 15 - 3
+
+    def test_stalwart_bonus_for_dwarf(self, calc: DerivedStatsCalculator) -> None:
+        saves = calc.calculate_saving_throws(
+            ClassName.FIGHTER,
+            1,
+            0,
+            ancestry=AncestryName.DWARF,
+            constitution=14,
+        )
+        # CON 14 → stalwart +4
+        assert saves.aimed_magic_items == 12  # 16 - 4
+        assert saves.death_paralysis_poison == 10  # 14 - 4
+        assert saves.spells == 13  # 17 - 4
+        # Breath and petri unaffected
+        assert saves.breath_weapons == 17
+        assert saves.petrifaction_polymorph == 15
+
+
+class TestThac0:
+    def test_fighter_thac0(self, calc: DerivedStatsCalculator) -> None:
+        thac0, bthb = calc.calculate_thac0(ClassName.FIGHTER, 1)
+        assert thac0 == 20
+        assert bthb == 0
+
+    def test_thief_thac0(self, calc: DerivedStatsCalculator) -> None:
+        thac0, bthb = calc.calculate_thac0(ClassName.THIEF, 1)
+        assert thac0 == 21
+        assert bthb == -1
+
+
+class TestEncumbrance:
+    def test_unencumbered(self, calc: DerivedStatsCalculator) -> None:
+        status, move = calc.calculate_encumbrance(30.0, 35, 120, 120)
+        assert status == "Unencumbered"
+        assert move == 120
+
+    def test_light_encumbrance(self, calc: DerivedStatsCalculator) -> None:
+        status, move = calc.calculate_encumbrance(60.0, 35, 120, 120)
+        assert status == "Light"
+        assert move == 90
+
+    def test_moderate_with_armor_cap(self, calc: DerivedStatsCalculator) -> None:
+        status, move = calc.calculate_encumbrance(100.0, 35, 120, 90)
+        assert status == "Moderate"
+        assert move == 60
+
+    def test_immobile(self, calc: DerivedStatsCalculator) -> None:
+        status, move = calc.calculate_encumbrance(200.0, 35, 120, 90)
+        assert status == "Immobile"
+        assert move == 0
+
+
+class TestThiefSkills:
+    def test_base_human_thief(self, calc: DerivedStatsCalculator) -> None:
+        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.HUMAN, 14)
+        # Human: +5 climb, +5 pick_locks
+        assert skills.climb == 90
+        assert skills.pick_locks == 30
+        assert skills.hide == 10
+
+    def test_halfling_thief_high_dex(self, calc: DerivedStatsCalculator) -> None:
+        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.HALFLING, 18)
+        # Base hide=10to +15 ancestry +10 dex = 35
+        assert skills.hide == 35
+        # Base move_quietly=15 +15 ancestry +10 dex = 40
+        assert skills.move_quietly == 40
+
+    def test_monk_no_pick_pockets(self, calc: DerivedStatsCalculator) -> None:
+        skills = calc.calculate_thief_skills(ClassName.MONK, AncestryName.HUMAN, 15)
+        assert skills.pick_pockets == 1
+        assert skills.read_languages == 1
+
+    def test_minimum_one_pct(self, calc: DerivedStatsCalculator) -> None:
+        # Low DEX + bad ancestry should never go below 1
+        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.DWARF, 9)
+        for field in ThiefSkills.model_fields:
+            assert getattr(skills, field) >= 1
+
+
+class TestTurnUndead:
+    def test_cleric_level_1(self, calc: DerivedStatsCalculator) -> None:
+        table = calc.calculate_turn_undead(1)
+        assert len(table) == 6
+        assert table[0].roll_needed == 10
+        assert table[5].roll_needed == "—"
+
+
+class TestSpellSlots:
+    def test_cleric_with_wis_16(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.CLERIC, 1, 16)
+        assert slots is not None
+        # WIS 16: +1(wis13) + 1(wis14) level-1, +1(wis15) + 1(wis16) level-2
+        assert slots.level_1 == 3  # 1 base + 2 bonus
+        assert slots.level_2 == 2  # +1(wis15) + 1(wis16)
+
+    def test_fighter_no_spells(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.FIGHTER, 1, 10)
+        assert slots is None
+
+    def test_magic_user_no_wis_bonus(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.MAGIC_USER, 1, 18)
+        assert slots is not None
+        assert slots.level_1 == 1  # No WIS bonus
+
+    def test_druid_base_two_slots(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.DRUID, 1, 12)
+        assert slots is not None
+        assert slots.level_1 == 2
+
+
+class TestXPBonus:
+    def test_fighter_str_16_gets_bonus(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=16,
+            dexterity=10,
+            constitution=10,
+            intelligence=10,
+            wisdom=10,
+            charisma=10,
+        )
+        assert calc.calculate_xp_bonus(ClassName.FIGHTER, scores) == 10
+
+    def test_fighter_str_15_no_bonus(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=15,
+            dexterity=10,
+            constitution=10,
+            intelligence=10,
+            wisdom=10,
+            charisma=10,
+        )
+        assert calc.calculate_xp_bonus(ClassName.FIGHTER, scores) == 0
+
+    def test_ranger_all_high(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=16,
+            dexterity=10,
+            constitution=14,
+            intelligence=16,
+            wisdom=16,
+            charisma=10,
+        )
+        assert calc.calculate_xp_bonus(ClassName.RANGER, scores) == 10
+
+    def test_ranger_one_low(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=16,
+            dexterity=10,
+            constitution=14,
+            intelligence=15,
+            wisdom=16,
+            charisma=10,
+        )
+        assert calc.calculate_xp_bonus(ClassName.RANGER, scores) == 0
+
+    def test_assassin_no_prime(self, calc: DerivedStatsCalculator) -> None:
+        scores = AbilityScores(
+            strength=18,
+            dexterity=18,
+            constitution=18,
+            intelligence=18,
+            wisdom=18,
+            charisma=18,
+        )
+        assert calc.calculate_xp_bonus(ClassName.ASSASSIN, scores) == 0
