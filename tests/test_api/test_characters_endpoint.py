@@ -80,3 +80,13 @@ class TestPDFEndpoint:
     def test_pdf_endpoint_content_disposition(self, client: TestClient) -> None:
         response = client.get("/api/v1/characters/generate/pdf?seed=42")
         assert "attachment" in response.headers.get("content-disposition", "")
+
+    def test_pdf_filename_contains_character_details(self, client: TestClient) -> None:
+        json_resp = client.get("/api/v1/characters/generate?seed=42")
+        char = json_resp.json()["character"]
+        pdf_resp = client.get("/api/v1/characters/generate/pdf?seed=42")
+        disposition = pdf_resp.headers["content-disposition"]
+        safe_class = char["character_class"].replace("-", "_")
+        assert f"Lvl{char['level']}" in disposition
+        assert safe_class in disposition
+        assert disposition.endswith('.pdf"')

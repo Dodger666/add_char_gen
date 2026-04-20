@@ -47,8 +47,14 @@ async def generate_character_pdf(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF generation error: {e}") from e
 
+    import re
+
+    safe_name = re.sub(r"[^\w\s-]", "", sheet.name).strip().replace(" ", "_")
+    safe_class = sheet.character_class.value.replace("-", "_")
+    filename = f"{safe_name}_Lvl{sheet.level}_{safe_class}.pdf"
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="osric_character_sheet.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

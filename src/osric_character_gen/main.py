@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 
 from osric_character_gen.api.v1.endpoints.characters import router as characters_router
+from osric_character_gen.api.v1.endpoints.frontend import router as frontend_router
 
 app = FastAPI(
     title="OSRIC 3.0 Character Generator",
@@ -11,6 +12,7 @@ app = FastAPI(
 )
 
 app.include_router(characters_router)
+app.include_router(frontend_router)
 
 
 @app.get("/health")
