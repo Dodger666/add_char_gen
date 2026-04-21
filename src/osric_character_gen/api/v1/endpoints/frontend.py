@@ -476,7 +476,11 @@ h1 {
     <div class="section">
       <div class="section-header">Wealth</div>
       <div class="field-row">
-        <div class="field"><span class="field-label">Gold Remaining</span><span class="field-value large" id="f-gold"></span></div>
+        <div class="field"><span class="field-label">Platinum</span><span class="field-value" id="f-pp"></span></div>
+        <div class="field"><span class="field-label">Gold</span><span class="field-value" id="f-gp"></span></div>
+        <div class="field"><span class="field-label">Electrum</span><span class="field-value" id="f-ep"></span></div>
+        <div class="field"><span class="field-label">Silver</span><span class="field-value" id="f-sp"></span></div>
+        <div class="field"><span class="field-label">Copper</span><span class="field-value" id="f-cp"></span></div>
       </div>
     </div>
 
@@ -636,8 +640,13 @@ function renderCharacter(c) {
   document.getElementById('f-encumbrance').textContent = c.encumbrance_status;
   document.getElementById('f-total-weight').textContent = c.total_weight_lbs + ' lbs';
 
-  // Gold
-  document.getElementById('f-gold').textContent = c.gold_remaining.toFixed(2) + ' gp';
+  // Coin Purse
+  const purse = c.coin_purse || {};
+  document.getElementById('f-pp').textContent = (purse.platinum || 0) + ' pp';
+  document.getElementById('f-gp').textContent = (purse.gold || 0) + ' gp';
+  document.getElementById('f-ep').textContent = (purse.electrum || 0) + ' ep';
+  document.getElementById('f-sp').textContent = (purse.silver || 0) + ' sp';
+  document.getElementById('f-cp').textContent = (purse.copper || 0) + ' cp';
 
   // Ancestry features
   renderTagList('section-ancestry-features', 'ancestry-features', c.ancestry_features);

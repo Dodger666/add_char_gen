@@ -112,9 +112,7 @@ class EquipmentPurchaser:
                 budget -= cost
                 total_weight += weight
 
-        # 7. Remaining gold adds weight (10 coins = 1 lb)
-        coin_weight = budget / 10.0
-        total_weight += coin_weight
+        # 7. Remaining gold is NOT counted in carried weight for encumbrance
 
         return EquipmentLoadout(
             armor=armor_item,

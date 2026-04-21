@@ -35,6 +35,7 @@ from osric_character_gen.models.character import (
     AbilityScores,
     CharacterSheet,
     ClassName,
+    CoinPurse,
 )
 
 
@@ -145,9 +146,11 @@ class CharacterGeneratorService:
 
         alignment = roller.choice(CLASS_ALIGNMENTS[class_name])
 
-        # Step 12: Roll starting gold
+        # Step 12: Roll starting gold (+ 500 GP per level above 1)
         gold_dice, gold_sides, gold_mult = CLASS_STARTING_GOLD[class_name]
         starting_gold = roller.roll_gold(gold_dice, gold_sides, gold_mult)
+        if effective_level > 1:
+            starting_gold += 500.0 * (effective_level - 1)
 
         # Step 13: Purchase equipment
         loadout = self._equipment_purchaser.purchase_equipment(class_name, starting_gold, adjusted_scores.strength)
@@ -250,9 +253,9 @@ class CharacterGeneratorService:
             # Recalculate bonuses after age adjustments
             bonuses = self._stats_calculator.calculate_ability_bonuses(adjusted_scores, class_name)
 
-        # Weapon proficiencies
+        # Weapon proficiencies — fill all slots from purchased + allowed weapons
         prof_slots = self._stats_calculator.calculate_proficiency_slots(class_name, effective_level)
-        weapon_profs = [w.name for w in loadout.weapons[:prof_slots]]
+        weapon_profs = self._select_weapon_proficiencies(class_name, loadout.weapons, prof_slots, roller)
 
         # Class features
         class_features = self._build_class_features(class_name, effective_level, spell_slots, bonuses, adjusted_scores)
@@ -302,6 +305,7 @@ class CharacterGeneratorService:
             weapons=loadout.weapons,
             equipment=loadout.equipment,
             gold_remaining=loadout.gold_remaining,
+            coin_purse=CoinPurse.from_gold(loadout.gold_remaining),
             total_weight_lbs=loadout.total_weight,
             encumbrance_allowance=bonuses.str_encumbrance,
             encumbrance_status=encumbrance_status,
@@ -413,3 +417,52 @@ class CharacterGeneratorService:
             features.append("Weapon specialization available (not implemented)")
 
         return features
+
+    def _select_weapon_proficiencies(
+        self,
+        class_name: ClassName,
+        purchased_weapons: list,
+        prof_slots: int,
+        roller: DiceRoller,
+    ) -> list[str]:
+        """Select weapon proficiencies filling all available slots.
+
+        Purchased weapons get proficiency first, then remaining slots
+        are filled from the class allowed weapons list.
+        """
+        from osric_character_gen.data.classes import CLASS_WEAPONS_ALLOWED
+        from osric_character_gen.data.weapons import MELEE_WEAPONS, MISSILE_WEAPONS
+
+        profs: list[str] = []
+        seen: set[str] = set()
+
+        # 1. Purchased weapons get priority
+        for w in purchased_weapons:
+            if len(profs) >= prof_slots:
+                break
+            if w.name not in seen:
+                profs.append(w.name)
+                seen.add(w.name)
+
+        # 2. Fill remaining slots from allowed weapons
+        if len(profs) < prof_slots:
+            allowed = CLASS_WEAPONS_ALLOWED[class_name]
+            if allowed is None:
+                # Any weapon allowed — build candidate list from all weapons
+                candidates = [w[0] for w in MELEE_WEAPONS] + [w[0] for w in MISSILE_WEAPONS]
+            else:
+                candidates = list(allowed)
+
+            # Remove already-assigned proficiencies
+            candidates = [c for c in candidates if c not in seen]
+
+            # Shuffle to add variety across characters
+            roller.shuffle(candidates)
+
+            for weapon_name in candidates:
+                if len(profs) >= prof_slots:
+                    break
+                profs.append(weapon_name)
+                seen.add(weapon_name)
+
+        return profs

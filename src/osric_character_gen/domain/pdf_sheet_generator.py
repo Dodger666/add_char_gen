@@ -139,20 +139,22 @@ class PDFSheetGenerator:
         # Wealth
         self._section_header("Wealth")
         y = pdf.get_y()
-        self._labeled_field("Gold Remaining", f"{character.gold_remaining:.2f} gp", self.MARGIN, y, 60)
+        purse = character.coin_purse
+        col_w = 35
+        self._labeled_field("Platinum", f"{purse.platinum} pp", self.MARGIN, y, col_w)
+        self._labeled_field("Gold", f"{purse.gold} gp", self.MARGIN + col_w + 2, y, col_w)
+        self._labeled_field("Electrum", f"{purse.electrum} ep", self.MARGIN + 2 * (col_w + 2), y, col_w)
+        self._labeled_field("Silver", f"{purse.silver} sp", self.MARGIN + 3 * (col_w + 2), y, col_w)
+        self._labeled_field("Copper", f"{purse.copper} cp", self.MARGIN + 4 * (col_w + 2), y, col_w)
         pdf.set_y(y + 10)
 
         # Special Abilities - Ancestry
         self._section_header("Special Abilities (Ancestry)")
-        for feature in character.ancestry_features:
-            pdf.set_font("Helvetica", "", self.FONT_SIZE)
-            pdf.cell(0, 5, _sanitize(f"  - {feature}"), new_x="LMARGIN", new_y="NEXT")
+        self._render_list_multi_column(character.ancestry_features, col_threshold=6, num_cols=2)
 
         # Special Abilities - Class
         self._section_header("Special Abilities (Class)")
-        for feature in character.class_features:
-            pdf.set_font("Helvetica", "", self.FONT_SIZE)
-            pdf.cell(0, 5, _sanitize(f"  - {feature}"), new_x="LMARGIN", new_y="NEXT")
+        self._render_list_multi_column(character.class_features, col_threshold=6, num_cols=2)
 
         # Thief Skills
         if character.thief_skills:
@@ -183,15 +185,8 @@ class PDFSheetGenerator:
         # Turn Undead
         if character.turn_undead:
             self._section_header("Turn Undead")
-            for entry in character.turn_undead:
-                pdf.set_font("Helvetica", "", self.FONT_SIZE)
-                pdf.cell(
-                    0,
-                    5,
-                    _sanitize(f"  {entry.undead_type} ({entry.example}): {entry.roll_needed}"),
-                    new_x="LMARGIN",
-                    new_y="NEXT",
-                )
+            turn_items = [f"{e.undead_type} ({e.example}): {e.roll_needed}" for e in character.turn_undead]
+            self._render_list_multi_column(turn_items, col_threshold=8, num_cols=2)
 
         # Spells
         if character.spell_slots:
@@ -207,28 +202,20 @@ class PDFSheetGenerator:
 
         if character.spells_memorized:
             self._section_header("Spells Memorized")
-            for spell in character.spells_memorized:
-                pdf.set_font("Helvetica", "", self.FONT_SIZE)
-                pdf.cell(0, 5, _sanitize(f"  - {spell}"), new_x="LMARGIN", new_y="NEXT")
+            self._render_list_multi_column(character.spells_memorized, col_threshold=6, num_cols=2)
 
         if character.spellbook:
             self._section_header("Spellbook")
-            for spell in character.spellbook:
-                pdf.set_font("Helvetica", "", self.FONT_SIZE)
-                pdf.cell(0, 5, _sanitize(f"  - {spell}"), new_x="LMARGIN", new_y="NEXT")
+            self._render_list_multi_column(character.spellbook, col_threshold=6, num_cols=3)
 
         # Weapon Proficiencies
         if character.weapon_proficiencies:
             self._section_header("Weapon Proficiencies")
-            for prof in character.weapon_proficiencies:
-                pdf.set_font("Helvetica", "", self.FONT_SIZE)
-                pdf.cell(0, 5, _sanitize(f"  - {prof}"), new_x="LMARGIN", new_y="NEXT")
+            self._render_list_multi_column(character.weapon_proficiencies, col_threshold=4, num_cols=2)
 
         # Languages
         self._section_header("Languages")
-        for lang in character.languages:
-            pdf.set_font("Helvetica", "", self.FONT_SIZE)
-            pdf.cell(0, 5, _sanitize(f"  - {lang}"), new_x="LMARGIN", new_y="NEXT")
+        self._render_list_multi_column(character.languages, col_threshold=6, num_cols=2)
 
         # Notes
         self._section_header("Notes")
@@ -239,7 +226,22 @@ class PDFSheetGenerator:
         if remaining > 20:
             pdf.rect(self.MARGIN, y, self.PAGE_W - 2 * self.MARGIN, remaining)
 
+    # --- Layout helpers ---
+
+    def _remaining_space(self) -> float:
+        """Return mm remaining before bottom margin."""
+        return self.PAGE_H - self._pdf.get_y() - self.MARGIN
+
+    def _ensure_space(self, needed_mm: float = 20) -> None:
+        """Add a continuation page if not enough vertical space."""
+        if self._remaining_space() < needed_mm:
+            pdf = self._pdf
+            pdf.add_page()
+            pdf.set_font("Helvetica", "B", self.TITLE_FONT_SIZE)
+            pdf.cell(0, 8, "OSRIC 3.0 Character Sheet (cont.)", new_x="LMARGIN", new_y="NEXT", align="C")
+
     def _section_header(self, title: str) -> None:
+        self._ensure_space(20)
         pdf = self._pdf
         pdf.set_font("Helvetica", "B", self.HEADER_FONT_SIZE)
         pdf.set_fill_color(220, 220, 220)
@@ -254,6 +256,61 @@ class PDFSheetGenerator:
         pdf.set_xy(x, y + 3)
         pdf.set_font("Helvetica", "", self.FONT_SIZE)
         pdf.cell(w, 5, _sanitize(value))
+
+    def _render_list_multi_column(
+        self,
+        items: list[str],
+        col_threshold: int = 6,
+        num_cols: int = 2,
+    ) -> None:
+        """Render a bullet list in multi-column layout when long.
+
+        If len(items) <= col_threshold, render single column.
+        Otherwise split into num_cols columns.
+        """
+        pdf = self._pdf
+        pdf.set_font("Helvetica", "", self.FONT_SIZE)
+        line_h = 5
+        usable_w = self.PAGE_W - 2 * self.MARGIN
+
+        if not items:
+            return
+
+        if len(items) <= col_threshold:
+            # Single column, with page-break awareness
+            for text in items:
+                self._ensure_space(line_h + 2)
+                pdf.set_font("Helvetica", "", self.FONT_SIZE)
+                pdf.cell(0, line_h, _sanitize(f"  - {text}"), new_x="LMARGIN", new_y="NEXT")
+            return
+
+        # Multi-column layout
+        col_w = usable_w / num_cols
+        rows_per_col = -(-len(items) // num_cols)  # ceil division
+
+        start_y = pdf.get_y()
+        block_height = rows_per_col * line_h
+        self._ensure_space(block_height + 2)
+        start_y = pdf.get_y()  # refresh after possible page break
+
+        for idx, text in enumerate(items):
+            col = idx // rows_per_col
+            row = idx % rows_per_col
+            x = self.MARGIN + col * col_w
+            y = start_y + row * line_h
+
+            # If a column would overflow the page, start a new page
+            if y + line_h > self.PAGE_H - self.MARGIN:
+                self._ensure_space(line_h + 2)
+                # Re-anchor to current position on new page
+                start_y = pdf.get_y() - row * line_h
+                y = start_y + row * line_h
+
+            pdf.set_xy(x, y)
+            pdf.set_font("Helvetica", "", self.FONT_SIZE)
+            pdf.cell(col_w, line_h, _sanitize(f"  - {text}"))
+
+        pdf.set_y(start_y + rows_per_col * line_h)
 
     def _render_ability_scores(self, character: CharacterSheet) -> None:
         pdf = self._pdf
@@ -400,27 +457,15 @@ class PDFSheetGenerator:
         pdf.set_y(y)
 
     def _render_equipment_list(self, character: CharacterSheet) -> None:
-        pdf = self._pdf
-        pdf.set_font("Helvetica", "", self.FONT_SIZE)
-        for item in character.equipment[:10]:
+        items = []
+        for item in character.equipment:
             weight_str = f" ({item.weight:.0f} lbs)" if item.weight > 0 else ""
-            pdf.cell(
-                0,
-                5,
-                _sanitize(f"  - {item.name}{weight_str}"),
-                new_x="LMARGIN",
-                new_y="NEXT",
-            )
+            items.append(f"{item.name}{weight_str}")
+        self._render_list_multi_column(items, col_threshold=8, num_cols=2)
 
     def _render_magical_items(self, character: CharacterSheet) -> None:
-        pdf = self._pdf
-        pdf.set_font("Helvetica", "", self.FONT_SIZE)
+        items = []
         for item in character.magical_items:
             suffix = " (equipped)" if item.equipped else ""
-            pdf.cell(
-                0,
-                5,
-                _sanitize(f"  - {item.name}{suffix}"),
-                new_x="LMARGIN",
-                new_y="NEXT",
-            )
+            items.append(f"{item.name}{suffix}")
+        self._render_list_multi_column(items, col_threshold=6, num_cols=2)

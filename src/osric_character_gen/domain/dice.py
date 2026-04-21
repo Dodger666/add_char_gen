@@ -92,3 +92,7 @@ class DiceRoller:
     def sample(self, population: list, k: int) -> list:
         """Return k unique random elements from population."""
         return self._rng.sample(population, k)
+
+    def shuffle(self, seq: list) -> None:
+        """Shuffle a list in place."""
+        self._rng.shuffle(seq)

@@ -154,6 +154,36 @@ class PhysicalCharacteristics(BaseModel):
     gender: Gender
 
 
+class CoinPurse(BaseModel):
+    """Coin denominations following OSRIC currency rules.
+
+    1 pp = 5 gp, 1 gp = 2 ep, 1 gp = 10 sp, 1 gp = 100 cp.
+    """
+
+    platinum: int = 0
+    gold: int = 0
+    electrum: int = 0
+    silver: int = 0
+    copper: int = 0
+
+    def total_in_gold(self) -> float:
+        """Return total value expressed in gold pieces."""
+        return self.platinum * 5 + self.gold + self.electrum * 0.5 + self.silver * 0.1 + self.copper * 0.01
+
+    @classmethod
+    def from_gold(cls, gp: float) -> "CoinPurse":
+        """Convert a gold piece amount into mixed denominations."""
+        if gp < 0:
+            raise ValueError("Cannot convert negative gold amount")
+        # Work in copper to avoid float issues
+        total_cp = round(gp * 100)
+        pp, total_cp = divmod(total_cp, 500)
+        gold, total_cp = divmod(total_cp, 100)
+        ep, total_cp = divmod(total_cp, 50)
+        sp, cp = divmod(total_cp, 10)
+        return cls(platinum=pp, gold=gold, electrum=ep, silver=sp, copper=cp)
+
+
 class MagicalItem(BaseModel):
     name: str
     item_type: str  # "armor", "shield", "weapon", "potion", "scroll", "ring", "miscellaneous", "ammunition"
@@ -192,6 +222,7 @@ class CharacterSheet(BaseModel):
     weapons: list[WeaponItem] = Field(default_factory=list)
     equipment: list[EquipmentItem] = Field(default_factory=list)
     gold_remaining: float
+    coin_purse: CoinPurse = Field(default_factory=CoinPurse)
 
     total_weight_lbs: float
     encumbrance_allowance: int

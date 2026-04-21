@@ -71,3 +71,18 @@ class TestEquipmentPurchaser:
         loadout = purchaser.purchase_equipment(ClassName.DRUID, 100.0, 10)
         if loadout.armor:
             assert loadout.armor.name == "Leather"
+
+    def test_remaining_gold_not_in_weight(self, purchaser: EquipmentPurchaser) -> None:
+        """Remaining gold should NOT be counted in carried weight."""
+        loadout_rich = purchaser.purchase_equipment(ClassName.MAGIC_USER, 500.0, 8)
+        loadout_poor = purchaser.purchase_equipment(ClassName.MAGIC_USER, 40.0, 8)
+        # Rich loadout has much more gold remaining but equipment weight
+        # should be similar since they buy the same gear
+        # The difference in total_weight should NOT include coin weight
+        gold_diff = loadout_rich.gold_remaining - loadout_poor.gold_remaining
+        weight_diff = loadout_rich.total_weight - loadout_poor.total_weight
+        # If gold were counted, weight_diff would be ~gold_diff/10
+        # Without gold, weight_diff should be small (just extra gear bought)
+        assert weight_diff < gold_diff / 10.0, (
+            f"Gold seems to be counted in weight: weight_diff={weight_diff:.1f}, gold_diff={gold_diff:.1f}"
+        )
