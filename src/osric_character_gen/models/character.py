@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -153,6 +154,15 @@ class PhysicalCharacteristics(BaseModel):
     gender: Gender
 
 
+class MagicalItem(BaseModel):
+    name: str
+    item_type: str  # "armor", "shield", "weapon", "potion", "scroll", "ring", "miscellaneous", "ammunition"
+    bonus: int | None = None
+    properties: dict[str, Any] = Field(default_factory=dict)
+    equipped: bool = False
+    replaces_mundane: str | None = None
+
+
 class CharacterSheet(BaseModel):
     name: str = "Unnamed Adventurer"
     character_class: ClassName
@@ -199,6 +209,7 @@ class CharacterSheet(BaseModel):
     class_features: list[str] = Field(default_factory=list)
     weapon_proficiencies: list[str] = Field(default_factory=list)
     languages: list[str] = Field(default_factory=list)
+    magical_items: list[MagicalItem] = Field(default_factory=list)
 
     generation_seed: int | None = None
     dice_rolls: dict | None = None

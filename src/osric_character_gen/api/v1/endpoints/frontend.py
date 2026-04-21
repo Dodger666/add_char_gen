@@ -52,6 +52,20 @@ body {
 }
 .toolbar button:hover { background: var(--section-bg); }
 .toolbar button:disabled { opacity: 0.5; cursor: wait; }
+.toolbar label {
+  color: var(--parchment);
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 700;
+}
+.toolbar select, .toolbar input[type="number"] {
+  background: var(--section-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+}
 .toolbar .seed-display {
   margin-left: auto;
   color: var(--parchment);
@@ -353,13 +367,15 @@ h1 {
 <body>
 
 <div class="toolbar">
-  <label for="level-select" style="color:var(--text-color);font-family:'Courier New',monospace;font-size:0.85rem;">Level:</label>
-  <select id="level-select" onchange="generateCharacter()" style="background:var(--section-bg);color:var(--text-color);border:1px solid var(--border);padding:4px 8px;font-family:'Courier New',monospace;font-size:0.85rem;">
+  <label for="level-select">Level:</label>
+  <select id="level-select" onchange="generateCharacter()">
     <option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
     <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
     <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option>
     <option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option>
   </select>
+  <label for="seed-input">Seed:</label>
+  <input type="number" id="seed-input" placeholder="Random" style="width:110px;">
   <button id="generate-new" onclick="generateCharacter()">Generate New Character</button>
   <button id="download-pdf" onclick="downloadPdf()" disabled>Download PDF</button>
   <span class="seed-display" id="seed-display"></span>
@@ -436,6 +452,12 @@ h1 {
     <div class="section">
       <div class="section-header">Equipment</div>
       <ul class="equip-list" id="equipment-list"></ul>
+    </div>
+
+    <!-- Magical Items -->
+    <div class="section" id="section-magical-items" style="display:none">
+      <div class="section-header">Magical Items</div>
+      <ul class="equip-list" id="magical-items-list"></ul>
     </div>
 
     <!-- Movement -->
@@ -539,11 +561,15 @@ async function generateCharacter() {
 
   try {
     const level = document.getElementById('level-select').value;
-    const resp = await fetch('/api/v1/characters/generate?level=' + level);
+    const seedInput = document.getElementById('seed-input').value.trim();
+    let url = '/api/v1/characters/generate?level=' + level;
+    if (seedInput !== '') url += '&seed=' + encodeURIComponent(seedInput);
+    const resp = await fetch(url);
     if (!resp.ok) throw new Error('Generation failed: ' + resp.status);
     const data = await resp.json();
     currentSeed = data.character.generation_seed;
     document.getElementById('seed-display').textContent = 'Seed: ' + currentSeed;
+    document.getElementById('seed-input').value = '';
     renderCharacter(data.character);
     loading.style.display = 'none';
     content.style.display = 'block';
@@ -600,6 +626,9 @@ function renderCharacter(c) {
 
   // Equipment
   renderEquipment(c.equipment);
+
+  // Magical Items
+  renderMagicalItems(c.magical_items);
 
   // Movement
   document.getElementById('f-movement').textContent = c.effective_movement + ' ft';
@@ -783,6 +812,24 @@ function renderEquipment(equipment) {
     const li = document.createElement('li');
     let text = item.name;
     if (item.weight > 0) text += ' (' + item.weight + ' lbs)';
+    li.textContent = text;
+    list.appendChild(li);
+  });
+}
+
+function renderMagicalItems(items) {
+  const section = document.getElementById('section-magical-items');
+  const list = document.getElementById('magical-items-list');
+  if (!items || items.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  list.innerHTML = '';
+  items.forEach(function(item) {
+    const li = document.createElement('li');
+    let text = item.name;
+    if (item.equipped) text += ' (equipped)';
     li.textContent = text;
     list.appendChild(li);
   });

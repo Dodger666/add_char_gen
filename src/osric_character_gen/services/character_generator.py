@@ -24,6 +24,7 @@ from osric_character_gen.domain.class_selector import (
 )
 from osric_character_gen.domain.dice import DiceRoller
 from osric_character_gen.domain.equipment_purchaser import EquipmentPurchaser
+from osric_character_gen.domain.magical_item_generator import MagicalItemGenerator
 from osric_character_gen.domain.name_generator import HolmesianNameGenerator
 from osric_character_gen.domain.physical_generator import (
     PhysicalCharacteristicsGenerator,
@@ -150,6 +151,10 @@ class CharacterGeneratorService:
 
         # Step 13: Purchase equipment
         loadout = self._equipment_purchaser.purchase_equipment(class_name, starting_gold, adjusted_scores.strength)
+
+        # Step 13b: Generate magical items (level 2+)
+        magical_item_gen = MagicalItemGenerator(roller)
+        magical_items = magical_item_gen.generate_magical_items(class_name, effective_level, ancestry)
 
         # Step 14: Calculate derived stats
         ac_desc, ac_asc = self._stats_calculator.calculate_armor_class(
@@ -311,6 +316,7 @@ class CharacterGeneratorService:
             class_features=class_features,
             weapon_proficiencies=weapon_profs,
             languages=languages,
+            magical_items=magical_items,
             generation_seed=seed,
         )
 

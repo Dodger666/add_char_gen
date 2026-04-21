@@ -116,6 +116,11 @@ class PDFSheetGenerator:
         self._section_header("Equipment")
         self._render_equipment_list(character)
 
+        # Magical Items
+        if character.magical_items:
+            self._section_header("Magical Items")
+            self._render_magical_items(character)
+
         # Movement / Encumbrance
         y = pdf.get_y()
         self._labeled_field("Movement", f"{character.effective_movement} ft", self.MARGIN, y, 40)
@@ -403,6 +408,19 @@ class PDFSheetGenerator:
                 0,
                 5,
                 _sanitize(f"  - {item.name}{weight_str}"),
+                new_x="LMARGIN",
+                new_y="NEXT",
+            )
+
+    def _render_magical_items(self, character: CharacterSheet) -> None:
+        pdf = self._pdf
+        pdf.set_font("Helvetica", "", self.FONT_SIZE)
+        for item in character.magical_items:
+            suffix = " (equipped)" if item.equipped else ""
+            pdf.cell(
+                0,
+                5,
+                _sanitize(f"  - {item.name}{suffix}"),
                 new_x="LMARGIN",
                 new_y="NEXT",
             )
