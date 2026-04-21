@@ -1,10 +1,9 @@
 """Spell selection logic for OSRIC 3.0 character generation."""
 
+import math
+
 from osric_character_gen.data.spells import (
-    CLERIC_SPELLS_LEVEL_1,
-    DRUID_SPELLS_LEVEL_1,
-    ILLUSIONIST_SPELLS_LEVEL_1,
-    MAGIC_USER_SPELLS_LEVEL_1,
+    SPELL_LISTS,
 )
 from osric_character_gen.domain.dice import DiceRoller
 from osric_character_gen.models.character import ClassName, SpellSlots
@@ -23,47 +22,124 @@ class SpellSelector:
             return [], None
 
         if class_name == ClassName.MAGIC_USER:
-            return self._select_magic_user_spells(spell_slots)
+            return self._select_arcane_spells(
+                class_name,
+                spell_slots,
+                has_spellbook=True,
+                must_have_read_magic=True,
+                base_spellbook_size=4,
+            )
         if class_name == ClassName.ILLUSIONIST:
-            return self._select_illusionist_spells(spell_slots)
+            return self._select_arcane_spells(
+                class_name,
+                spell_slots,
+                has_spellbook=True,
+                must_have_read_magic=False,
+                base_spellbook_size=3,
+            )
         if class_name == ClassName.CLERIC:
-            return self._select_cleric_spells(spell_slots)
+            return self._select_divine_spells(class_name, spell_slots, priority_spell="Cure Light Wounds")
         if class_name == ClassName.DRUID:
-            return self._select_druid_spells(spell_slots)
+            return self._select_divine_spells(class_name, spell_slots)
+        if class_name == ClassName.PALADIN:
+            return self._select_divine_spells(class_name, spell_slots, priority_spell="Cure Light Wounds")
+        if class_name == ClassName.RANGER:
+            return self._select_ranger_spells(spell_slots)
 
         return [], None
 
-    def _select_magic_user_spells(self, spell_slots: SpellSlots) -> tuple[list[str], list[str]]:
-        """MU starts with 4 spells in spellbook. Read Magic always included."""
-        pool = [s for s in MAGIC_USER_SPELLS_LEVEL_1 if s != "Read Magic"]
-        other_spells = self._roller.sample(pool, 3)
-        spellbook = ["Read Magic"] + sorted(other_spells)
+    def _select_arcane_spells(
+        self,
+        class_name: ClassName,
+        spell_slots: SpellSlots,
+        *,
+        has_spellbook: bool,
+        must_have_read_magic: bool,
+        base_spellbook_size: int,
+    ) -> tuple[list[str], list[str] | None]:
+        """Select spells for arcane casters (MU, Illusionist)."""
+        cls_key = class_name.value
+        spell_lists = SPELL_LISTS.get(cls_key, {})
+        all_memorized: list[str] = []
+        all_spellbook: list[str] = []
 
-        # Memorize up to level_1 slots
-        memorized = spellbook[: spell_slots.level_1]
-        return memorized, spellbook
+        for spell_level in range(1, 8):
+            slot_count = getattr(spell_slots, f"level_{spell_level}", 0)
+            if slot_count <= 0:
+                continue
+            pool = spell_lists.get(spell_level, [])
+            if not pool:
+                continue
 
-    def _select_illusionist_spells(self, spell_slots: SpellSlots) -> tuple[list[str], list[str]]:
-        """Illusionist starts with 3 random spells in spellbook."""
-        spellbook = sorted(self._roller.sample(ILLUSIONIST_SPELLS_LEVEL_1, 3))
-        memorized = spellbook[: spell_slots.level_1]
-        return memorized, spellbook
+            if spell_level == 1:
+                # Level 1: spellbook has base_spellbook_size or more
+                spellbook_size = max(base_spellbook_size, math.ceil(slot_count * 1.5))
+                spellbook_size = min(spellbook_size, len(pool))
+                if must_have_read_magic and "Read Magic" in pool:
+                    other_pool = [s for s in pool if s != "Read Magic"]
+                    others = self._roller.sample(other_pool, min(spellbook_size - 1, len(other_pool)))
+                    level_book = ["Read Magic"] + sorted(others)
+                else:
+                    level_book = sorted(self._roller.sample(pool, spellbook_size))
+            else:
+                spellbook_size = min(math.ceil(slot_count * 1.5), len(pool))
+                level_book = sorted(self._roller.sample(pool, spellbook_size))
 
-    def _select_cleric_spells(self, spell_slots: SpellSlots) -> tuple[list[str], None]:
-        """Cleric memorizes from all divine spells. CLW first."""
-        total_slots = spell_slots.level_1
-        memorized = ["Cure Light Wounds"]
-        remaining = total_slots - 1
+            all_spellbook.extend(level_book)
+            memorized = level_book[:slot_count]
+            all_memorized.extend(memorized)
 
-        if remaining > 0:
-            pool = [s for s in CLERIC_SPELLS_LEVEL_1 if s != "Cure Light Wounds"]
-            extra = self._roller.sample(pool, min(remaining, len(pool)))
-            memorized.extend(sorted(extra))
+        return all_memorized, all_spellbook if has_spellbook else None
 
-        return memorized, None
+    def _select_divine_spells(
+        self,
+        class_name: ClassName,
+        spell_slots: SpellSlots,
+        priority_spell: str | None = None,
+    ) -> tuple[list[str], None]:
+        """Select spells for divine casters (Cleric, Druid, Paladin)."""
+        cls_key = class_name.value
+        spell_lists = SPELL_LISTS.get(cls_key, {})
+        all_memorized: list[str] = []
 
-    def _select_druid_spells(self, spell_slots: SpellSlots) -> tuple[list[str], None]:
-        """Druid memorizes from all druidic spells."""
-        total_slots = spell_slots.level_1
-        memorized = sorted(self._roller.sample(DRUID_SPELLS_LEVEL_1, min(total_slots, len(DRUID_SPELLS_LEVEL_1))))
-        return memorized, None
+        for spell_level in range(1, 8):
+            slot_count = getattr(spell_slots, f"level_{spell_level}", 0)
+            if slot_count <= 0:
+                continue
+            pool = spell_lists.get(spell_level, [])
+            if not pool:
+                continue
+
+            if spell_level == 1 and priority_spell and priority_spell in pool:
+                memorized = [priority_spell]
+                remaining = slot_count - 1
+                if remaining > 0:
+                    other_pool = [s for s in pool if s != priority_spell]
+                    extra = self._roller.sample(other_pool, min(remaining, len(other_pool)))
+                    memorized.extend(sorted(extra))
+            else:
+                count = min(slot_count, len(pool))
+                memorized = sorted(self._roller.sample(pool, count))
+
+            all_memorized.extend(memorized)
+
+        return all_memorized, None
+
+    def _select_ranger_spells(self, spell_slots: SpellSlots) -> tuple[list[str], None]:
+        """Select spells for Ranger (druid + MU spell lists)."""
+        druid_lists = SPELL_LISTS.get("Druid", {})
+        all_memorized: list[str] = []
+
+        # Ranger uses druid spells for its primary slots
+        for spell_level in range(1, 8):
+            slot_count = getattr(spell_slots, f"level_{spell_level}", 0)
+            if slot_count <= 0:
+                continue
+            pool = druid_lists.get(spell_level, [])
+            if not pool:
+                continue
+            count = min(slot_count, len(pool))
+            memorized = sorted(self._roller.sample(pool, count))
+            all_memorized.extend(memorized)
+
+        return all_memorized, None

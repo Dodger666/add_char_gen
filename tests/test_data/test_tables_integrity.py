@@ -358,3 +358,294 @@ class TestCrossTableConsistency:
                 # With positive adjustment, max should exceed base 18
                 if adj > 0:
                     assert hi >= 18, f"{anc} {ability}: max {hi} too low for +{adj}"
+
+
+class TestSavingThrowProgression:
+    """Validate full saving throw progression tables."""
+
+    def test_all_classes_have_save_tables(self) -> None:
+        from osric_character_gen.data.saving_throws import SAVING_THROW_TABLES
+
+        for cls in ClassName:
+            assert cls in SAVING_THROW_TABLES, f"Missing save table for {cls}"
+
+    def test_get_saving_throws_level_1_matches_legacy(self) -> None:
+        from osric_character_gen.data.saving_throws import SAVING_THROWS_LEVEL_1, get_saving_throws
+
+        for cls in ClassName:
+            legacy = SAVING_THROWS_LEVEL_1[cls]
+            new = get_saving_throws(cls, 1)
+            assert legacy == new, f"{cls} level 1 mismatch: {legacy} vs {new}"
+
+    def test_saves_improve_with_level(self) -> None:
+        from osric_character_gen.data.saving_throws import get_saving_throws
+
+        for cls in ClassName:
+            low = get_saving_throws(cls, 1)
+            high = get_saving_throws(cls, 20)
+            # All saves should improve (lower numbers are better)
+            for i in range(5):
+                assert high[i] <= low[i], f"{cls} save index {i} did not improve from level 1 to 20"
+
+    def test_fighter_level_5_saves(self) -> None:
+        from osric_character_gen.data.saving_throws import get_saving_throws
+
+        saves = get_saving_throws(ClassName.FIGHTER, 5)
+        assert saves == (13, 13, 11, 12, 14)
+
+    def test_paladin_level_10_saves(self) -> None:
+        from osric_character_gen.data.saving_throws import get_saving_throws
+
+        saves = get_saving_throws(ClassName.PALADIN, 10)
+        assert saves == (8, 7, 6, 7, 9)
+
+
+class TestThac0Progression:
+    """Validate full THAC0/BTHB progression tables."""
+
+    def test_all_classes_have_thac0_tables(self) -> None:
+        from osric_character_gen.data.classes import THAC0_TABLES
+
+        for cls in ClassName:
+            assert cls in THAC0_TABLES, f"Missing THAC0 table for {cls}"
+
+    def test_get_thac0_level_1_matches_legacy(self) -> None:
+        from osric_character_gen.data.classes import CLASS_THAC0, get_thac0
+
+        for cls in ClassName:
+            legacy = CLASS_THAC0[cls]
+            new = get_thac0(cls, 1)
+            assert legacy == new, f"{cls} level 1 THAC0 mismatch: {legacy} vs {new}"
+
+    def test_fighter_level_5(self) -> None:
+        from osric_character_gen.data.classes import get_thac0
+
+        assert get_thac0(ClassName.FIGHTER, 5) == (16, 4)
+
+    def test_thief_level_9(self) -> None:
+        from osric_character_gen.data.classes import get_thac0
+
+        assert get_thac0(ClassName.THIEF, 9) == (16, 4)
+
+    def test_magic_user_level_16(self) -> None:
+        from osric_character_gen.data.classes import get_thac0
+
+        assert get_thac0(ClassName.MAGIC_USER, 16) == (11, 9)
+
+
+class TestSpellSlotProgression:
+    """Validate full spell slot progression tables."""
+
+    def test_cleric_level_1_matches(self) -> None:
+        from osric_character_gen.data.classes import SPELL_SLOT_TABLES
+
+        assert SPELL_SLOT_TABLES[ClassName.CLERIC][1] == (1, 0, 0, 0, 0, 0, 0)
+
+    def test_cleric_level_9(self) -> None:
+        from osric_character_gen.data.classes import SPELL_SLOT_TABLES
+
+        assert SPELL_SLOT_TABLES[ClassName.CLERIC][9] == (4, 4, 3, 2, 1, 0, 0)
+
+    def test_magic_user_level_14(self) -> None:
+        from osric_character_gen.data.classes import SPELL_SLOT_TABLES
+
+        assert SPELL_SLOT_TABLES[ClassName.MAGIC_USER][14] == (5, 5, 5, 4, 4, 2, 1)
+
+    def test_paladin_no_spells_before_9(self) -> None:
+        from osric_character_gen.data.classes import SPELL_SLOT_TABLES
+
+        for lvl in range(1, 9):
+            assert SPELL_SLOT_TABLES[ClassName.PALADIN][lvl] == (0, 0, 0, 0, 0, 0, 0)
+
+    def test_paladin_gets_spells_at_9(self) -> None:
+        from osric_character_gen.data.classes import SPELL_SLOT_TABLES
+
+        assert SPELL_SLOT_TABLES[ClassName.PALADIN][9] == (1, 0, 0, 0, 0, 0, 0)
+
+    def test_druid_max_level_14(self) -> None:
+        from osric_character_gen.data.classes import SPELL_SLOT_TABLES
+
+        assert 14 in SPELL_SLOT_TABLES[ClassName.DRUID]
+        assert 15 not in SPELL_SLOT_TABLES[ClassName.DRUID]
+
+
+class TestThiefSkillProgression:
+    """Validate full thief skill progression tables."""
+
+    def test_level_1_matches_base(self) -> None:
+        from osric_character_gen.data.thief_skills import BASE_THIEF_SKILLS, THIEF_SKILLS_BY_LEVEL
+
+        assert THIEF_SKILLS_BY_LEVEL[1] == BASE_THIEF_SKILLS
+
+    def test_skills_increase_with_level(self) -> None:
+        from osric_character_gen.data.thief_skills import THIEF_SKILLS_BY_LEVEL
+
+        for skill in THIEF_SKILLS_BY_LEVEL[1]:
+            val_1 = THIEF_SKILLS_BY_LEVEL[1][skill]
+            val_17 = THIEF_SKILLS_BY_LEVEL[17][skill]
+            assert val_17 >= val_1, f"{skill} did not increase from level 1 to 17"
+
+    def test_all_levels_1_to_17_present(self) -> None:
+        from osric_character_gen.data.thief_skills import THIEF_SKILLS_BY_LEVEL
+
+        for lvl in range(1, 18):
+            assert lvl in THIEF_SKILLS_BY_LEVEL
+
+
+class TestTurnUndeadProgression:
+    """Validate full turn undead progression tables."""
+
+    def test_level_1_matches_legacy(self) -> None:
+        from osric_character_gen.data.turn_undead import TURN_UNDEAD_LEVEL_1, get_turn_undead
+
+        result = get_turn_undead(1)
+        for i, (t, e, r) in enumerate(TURN_UNDEAD_LEVEL_1):
+            if r == "—":
+                continue
+            assert result[i] == (t, e, r)
+
+    def test_level_9_has_more_entries(self) -> None:
+        from osric_character_gen.data.turn_undead import get_turn_undead
+
+        t1 = get_turn_undead(1)
+        t9 = get_turn_undead(9)
+        assert len(t9) > len(t1)
+
+    def test_level_9_has_destroy(self) -> None:
+        from osric_character_gen.data.turn_undead import get_turn_undead
+
+        entries = get_turn_undead(9)
+        rolls = [e[2] for e in entries]
+        assert "D" in rolls
+
+
+class TestHigherLevelSpells:
+    """Validate higher-level spell lists."""
+
+    def test_spell_lists_all_classes_present(self) -> None:
+        from osric_character_gen.data.spells import SPELL_LISTS
+
+        for cls_name in ["Cleric", "Druid", "Magic-User", "Illusionist", "Paladin"]:
+            assert cls_name in SPELL_LISTS
+
+    def test_cleric_has_7_levels(self) -> None:
+        from osric_character_gen.data.spells import SPELL_LISTS
+
+        for lvl in range(1, 8):
+            assert lvl in SPELL_LISTS["Cleric"]
+            assert len(SPELL_LISTS["Cleric"][lvl]) >= 5
+
+    def test_magic_user_has_7_levels(self) -> None:
+        from osric_character_gen.data.spells import SPELL_LISTS
+
+        for lvl in range(1, 8):
+            assert lvl in SPELL_LISTS["Magic-User"]
+            assert len(SPELL_LISTS["Magic-User"][lvl]) >= 5
+
+    def test_paladin_has_4_levels_only(self) -> None:
+        from osric_character_gen.data.spells import SPELL_LISTS
+
+        assert len(SPELL_LISTS["Paladin"]) == 4
+
+    def test_no_duplicate_spells_per_level(self) -> None:
+        from osric_character_gen.data.spells import SPELL_LISTS
+
+        for cls_name, levels in SPELL_LISTS.items():
+            for lvl, spells in levels.items():
+                assert len(spells) == len(set(spells)), f"Duplicates in {cls_name} level {lvl}"
+
+
+class TestMonkTables:
+    """Validate monk progression tables."""
+
+    def test_monk_ac_all_levels(self) -> None:
+        from osric_character_gen.data.monk_tables import MONK_AC
+
+        for lvl in range(1, 18):
+            assert lvl in MONK_AC
+            desc, asc = MONK_AC[lvl]
+            assert desc + asc == 20, f"Monk AC at level {lvl}: {desc}+{asc} != 20"
+
+    def test_monk_damage_all_levels(self) -> None:
+        from osric_character_gen.data.monk_tables import MONK_DAMAGE
+
+        for lvl in range(1, 18):
+            assert lvl in MONK_DAMAGE
+            assert isinstance(MONK_DAMAGE[lvl], str)
+
+    def test_monk_movement_all_levels(self) -> None:
+        from osric_character_gen.data.monk_tables import MONK_MOVEMENT
+
+        for lvl in range(1, 18):
+            assert lvl in MONK_MOVEMENT
+            assert MONK_MOVEMENT[lvl] >= 150
+
+    def test_monk_movement_increases(self) -> None:
+        from osric_character_gen.data.monk_tables import MONK_MOVEMENT
+
+        assert MONK_MOVEMENT[17] > MONK_MOVEMENT[1]
+
+
+class TestXPTables:
+    """Validate XP progression tables."""
+
+    def test_all_classes_have_xp_tables(self) -> None:
+        from osric_character_gen.data.classes import CLASS_XP_TABLE
+
+        for cls in ClassName:
+            assert cls in CLASS_XP_TABLE
+
+    def test_xp_starts_at_zero(self) -> None:
+        from osric_character_gen.data.classes import CLASS_XP_TABLE
+
+        for cls, table in CLASS_XP_TABLE.items():
+            assert table[1] == 0, f"{cls} level 1 XP should be 0"
+
+    def test_xp_increases_monotonically(self) -> None:
+        from osric_character_gen.data.classes import CLASS_XP_TABLE
+
+        for cls, table in CLASS_XP_TABLE.items():
+            prev = -1
+            for lvl in sorted(table.keys()):
+                assert table[lvl] >= prev, f"{cls} XP not monotonic at level {lvl}"
+                prev = table[lvl]
+
+
+class TestHitDieCaps:
+    """Validate hit die cap and fixed HP tables."""
+
+    def test_all_classes_have_caps(self) -> None:
+        from osric_character_gen.data.classes import CLASS_FIXED_HP_PER_LEVEL, CLASS_HIT_DIE_CAP
+
+        for cls in ClassName:
+            assert cls in CLASS_HIT_DIE_CAP
+            assert cls in CLASS_FIXED_HP_PER_LEVEL
+
+    def test_cap_within_max_level(self) -> None:
+        from osric_character_gen.data.classes import CLASS_HIT_DIE_CAP, CLASS_MAX_LEVEL
+
+        for cls in ClassName:
+            assert CLASS_HIT_DIE_CAP[cls] <= CLASS_MAX_LEVEL[cls]
+
+
+class TestProficiencyGainLevels:
+    """Validate weapon proficiency gain schedule."""
+
+    def test_all_classes_have_gain_levels(self) -> None:
+        from osric_character_gen.data.classes import CLASS_PROFICIENCY_GAIN_LEVELS
+
+        for cls in ClassName:
+            assert cls in CLASS_PROFICIENCY_GAIN_LEVELS
+
+    def test_gain_levels_sorted(self) -> None:
+        from osric_character_gen.data.classes import CLASS_PROFICIENCY_GAIN_LEVELS
+
+        for cls, levels in CLASS_PROFICIENCY_GAIN_LEVELS.items():
+            assert levels == sorted(levels), f"{cls} gain levels not sorted"
+
+    def test_gain_levels_above_1(self) -> None:
+        from osric_character_gen.data.classes import CLASS_PROFICIENCY_GAIN_LEVELS
+
+        for cls, levels in CLASS_PROFICIENCY_GAIN_LEVELS.items():
+            for lvl in levels:
+                assert lvl > 1, f"{cls} has gain level at {lvl}"

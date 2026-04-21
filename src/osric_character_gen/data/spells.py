@@ -15,6 +15,87 @@ CLERIC_SPELLS_LEVEL_1: list[str] = [
     "Sanctuary",
 ]
 
+CLERIC_SPELLS_LEVEL_2: list[str] = [
+    "Augury",
+    "Chant",
+    "Detect Charm",
+    "Find Traps",
+    "Hold Person",
+    "Know Alignment",
+    "Resist Fire",
+    "Silence 15' Radius",
+    "Slow Poison",
+    "Snake Charm",
+    "Speak with Animals",
+    "Spiritual Weapon",
+]
+
+CLERIC_SPELLS_LEVEL_3: list[str] = [
+    "Animate Dead",
+    "Continual Light",
+    "Create Food & Water",
+    "Cure Blindness",
+    "Cure Disease",
+    "Dispel Magic",
+    "Feign Death",
+    "Glyph of Warding",
+    "Locate Object",
+    "Prayer",
+    "Remove Curse",
+    "Speak with Dead",
+]
+
+CLERIC_SPELLS_LEVEL_4: list[str] = [
+    "Cure Serious Wounds",
+    "Detect Lie",
+    "Divination",
+    "Exorcise",
+    "Lower Water",
+    "Neutralise Poison",
+    "Protection from Evil 10' Radius",
+    "Speak with Plants",
+    "Sticks to Snakes",
+    "Tongues",
+]
+
+CLERIC_SPELLS_LEVEL_5: list[str] = [
+    "Atonement",
+    "Commune",
+    "Cure Critical Wounds",
+    "Dispel Evil",
+    "Flame Strike",
+    "Insect Plague",
+    "Quest",
+    "Raise Dead",
+    "True Seeing",
+]
+
+CLERIC_SPELLS_LEVEL_6: list[str] = [
+    "Aerial Servant",
+    "Animate Object",
+    "Blade Barrier",
+    "Conjure Animals",
+    "Find the Path",
+    "Heal",
+    "Part Water",
+    "Speak with Monsters",
+    "Stone Tell",
+    "Word of Recall",
+]
+
+CLERIC_SPELLS_LEVEL_7: list[str] = [
+    "Astral Spell",
+    "Control Weather",
+    "Earthquake",
+    "Gate",
+    "Holy Word",
+    "Regenerate",
+    "Restoration",
+    "Resurrection",
+    "Symbol",
+    "Wind Walk",
+]
+
 DRUID_SPELLS_LEVEL_1: list[str] = [
     "Animal Friendship",
     "Detect Magic",
@@ -27,6 +108,90 @@ DRUID_SPELLS_LEVEL_1: list[str] = [
     "Predict Weather",
     "Purify Water",
     "Shillelagh",
+]
+
+DRUID_SPELLS_LEVEL_2: list[str] = [
+    "Barkskin",
+    "Charm Person or Mammal",
+    "Create Water",
+    "Cure Light Wounds",
+    "Feign Death",
+    "Fire Trap",
+    "Heat Metal",
+    "Locate Plants",
+    "Obscurement",
+    "Produce Flame",
+    "Trip",
+    "Warp Wood",
+]
+
+DRUID_SPELLS_LEVEL_3: list[str] = [
+    "Call Lightning",
+    "Cure Disease",
+    "Hold Animal",
+    "Neutralise Poison",
+    "Plant Growth",
+    "Protection from Fire",
+    "Pyrotechnics",
+    "Snare",
+    "Stone Shape",
+    "Summon Insects",
+    "Tree",
+    "Water Breathing",
+]
+
+DRUID_SPELLS_LEVEL_4: list[str] = [
+    "Animal Summoning I",
+    "Call Woodland Beings",
+    "Control Temperature 10' Radius",
+    "Cure Serious Wounds",
+    "Dispel Magic",
+    "Hallucinatory Forest",
+    "Hold Plant",
+    "Plant Door",
+    "Produce Fire",
+    "Protection from Lightning",
+    "Repel Insects",
+    "Speak with Plants",
+]
+
+DRUID_SPELLS_LEVEL_5: list[str] = [
+    "Animal Growth",
+    "Animal Summoning II",
+    "Anti-Plant Shell",
+    "Commune with Nature",
+    "Control Winds",
+    "Insect Plague",
+    "Pass Plant",
+    "Sticks to Snakes",
+    "Transmute Rock to Mud",
+    "Wall of Fire",
+]
+
+DRUID_SPELLS_LEVEL_6: list[str] = [
+    "Animal Summoning III",
+    "Anti-Animal Shell",
+    "Conjure Fire Elemental",
+    "Cure Critical Wounds",
+    "Feeblemind",
+    "Fire Seeds",
+    "Transport via Plants",
+    "Turn Wood",
+    "Wall of Thorns",
+    "Weather Summoning",
+]
+
+DRUID_SPELLS_LEVEL_7: list[str] = [
+    "Animate Rock",
+    "Chariot of Fire",
+    "Confusion",
+    "Conjure Earth Elemental",
+    "Control Weather",
+    "Creeping Doom",
+    "Finger of Death",
+    "Fire Storm",
+    "Reincarnate",
+    "Transmute Metal to Wood",
 ]
 
 MAGIC_USER_SPELLS_LEVEL_1: list[str] = [
@@ -62,6 +227,143 @@ MAGIC_USER_SPELLS_LEVEL_1: list[str] = [
     "Write",
 ]
 
+MAGIC_USER_SPELLS_LEVEL_2: list[str] = [
+    "Audible Glamour",
+    "Continual Light",
+    "Darkness 15' Radius",
+    "Detect Evil",
+    "Detect Invisibility",
+    "ESP",
+    "Forget",
+    "Invisibility",
+    "Knock",
+    "Levitate",
+    "Locate Object",
+    "Magic Mouth",
+    "Mirror Image",
+    "Phantasmal Force",
+    "Pyrotechnics",
+    "Ray of Enfeeblement",
+    "Rope Trick",
+    "Scare",
+    "Shatter",
+    "Stinking Cloud",
+    "Strength",
+    "Web",
+    "Wizard Lock",
+]
+
+MAGIC_USER_SPELLS_LEVEL_3: list[str] = [
+    "Blink",
+    "Clairaudience",
+    "Clairvoyance",
+    "Dispel Magic",
+    "Explosive Runes",
+    "Feign Death",
+    "Fireball",
+    "Flame Arrow",
+    "Fly",
+    "Gust of Wind",
+    "Haste",
+    "Hold Person",
+    "Infravision",
+    "Invisibility 10' Radius",
+    "Lightning Bolt",
+    "Monster Summoning I",
+    "Phantasmal Force",
+    "Protection from Evil 10' Radius",
+    "Protection from Normal Missiles",
+    "Slow",
+    "Suggestion",
+    "Tongues",
+    "Water Breathing",
+]
+
+MAGIC_USER_SPELLS_LEVEL_4: list[str] = [
+    "Charm Monster",
+    "Confusion",
+    "Dig",
+    "Dimension Door",
+    "Enchanted Weapon",
+    "Extension I",
+    "Fear",
+    "Fire Shield",
+    "Fire Trap",
+    "Fumble",
+    "Hallucinatory Terrain",
+    "Ice Storm",
+    "Massmorph",
+    "Minor Globe of Invulnerability",
+    "Monster Summoning II",
+    "Plant Growth",
+    "Polymorph Other",
+    "Polymorph Self",
+    "Remove Curse",
+    "Wall of Fire",
+    "Wall of Ice",
+    "Wizard Eye",
+]
+
+MAGIC_USER_SPELLS_LEVEL_5: list[str] = [
+    "Animate Dead",
+    "Cloudkill",
+    "Cone of Cold",
+    "Conjure Elemental",
+    "Contact Other Plane",
+    "Extension II",
+    "Feeblemind",
+    "Hold Monster",
+    "Magic Jar",
+    "Monster Summoning III",
+    "Passwall",
+    "Stone Shape",
+    "Telekinesis",
+    "Teleport",
+    "Transmute Rock to Mud",
+    "Wall of Force",
+    "Wall of Iron",
+    "Wall of Stone",
+]
+
+MAGIC_USER_SPELLS_LEVEL_6: list[str] = [
+    "Anti-Magic Shell",
+    "Control Weather",
+    "Death Spell",
+    "Disintegrate",
+    "Enchant an Item",
+    "Extension III",
+    "Geas",
+    "Globe of Invulnerability",
+    "Guards and Wards",
+    "Invisible Stalker",
+    "Legend Lore",
+    "Lower Water",
+    "Monster Summoning IV",
+    "Move Earth",
+    "Part Water",
+    "Project Image",
+    "Reincarnation",
+    "Repulsion",
+    "Stone to Flesh",
+    "Transformation",
+]
+
+MAGIC_USER_SPELLS_LEVEL_7: list[str] = [
+    "Cacodemon",
+    "Charm Plants",
+    "Delayed Blast Fireball",
+    "Duo-Dimension",
+    "Limited Wish",
+    "Mass Invisibility",
+    "Monster Summoning V",
+    "Phase Door",
+    "Power Word Stun",
+    "Reverse Gravity",
+    "Simulacrum",
+    "Statue",
+    "Vanish",
+]
+
 ILLUSIONIST_SPELLS_LEVEL_1: list[str] = [
     "Audible Glamour",
     "Change Self",
@@ -76,3 +378,122 @@ ILLUSIONIST_SPELLS_LEVEL_1: list[str] = [
     "Phantasmal Force",
     "Wall of Fog",
 ]
+
+ILLUSIONIST_SPELLS_LEVEL_2: list[str] = [
+    "Blindness",
+    "Blur",
+    "Deafness",
+    "Detect Magic",
+    "Fog Cloud",
+    "Hypnotic Pattern",
+    "Improved Phantasmal Force",
+    "Invisibility",
+    "Magic Mouth",
+    "Mirror Image",
+    "Misdirection",
+    "Ventriloquism",
+]
+
+ILLUSIONIST_SPELLS_LEVEL_3: list[str] = [
+    "Continual Darkness",
+    "Continual Light",
+    "Dispel Illusion",
+    "Fear",
+    "Hallucinatory Terrain",
+    "Illusory Script",
+    "Invisibility 10' Radius",
+    "Non-Detection",
+    "Paralysation",
+    "Rope Trick",
+    "Spectral Force",
+    "Suggestion",
+]
+
+ILLUSIONIST_SPELLS_LEVEL_4: list[str] = [
+    "Confusion",
+    "Dispel Magic",
+    "Emotion",
+    "Improved Invisibility",
+    "Massmorph",
+    "Minor Creation",
+    "Phantasmal Killer",
+    "Shadow Monsters",
+]
+
+ILLUSIONIST_SPELLS_LEVEL_5: list[str] = [
+    "Chaos",
+    "Demi-Shadow Monsters",
+    "Major Creation",
+    "Maze",
+    "Project Image",
+    "Shadow Door",
+    "Shadow Magic",
+    "Summon Shadow",
+]
+
+ILLUSIONIST_SPELLS_LEVEL_6: list[str] = [
+    "Conjure Animals",
+    "Demi-Shadow Magic",
+    "Mass Suggestion",
+    "Permanent Illusion",
+    "Programmed Illusion",
+    "Shades",
+    "True Seeing",
+    "Veil",
+]
+
+ILLUSIONIST_SPELLS_LEVEL_7: list[str] = [
+    "Alter Reality",
+    "Astral Spell",
+    "Prismatic Spray",
+    "Prismatic Wall",
+    "Shadow Walk",
+    "Vision",
+    "Weird",
+]
+
+# Lookup dictionaries: class name → {spell_level: list[str]}
+SPELL_LISTS: dict[str, dict[int, list[str]]] = {
+    "Cleric": {
+        1: CLERIC_SPELLS_LEVEL_1,
+        2: CLERIC_SPELLS_LEVEL_2,
+        3: CLERIC_SPELLS_LEVEL_3,
+        4: CLERIC_SPELLS_LEVEL_4,
+        5: CLERIC_SPELLS_LEVEL_5,
+        6: CLERIC_SPELLS_LEVEL_6,
+        7: CLERIC_SPELLS_LEVEL_7,
+    },
+    "Druid": {
+        1: DRUID_SPELLS_LEVEL_1,
+        2: DRUID_SPELLS_LEVEL_2,
+        3: DRUID_SPELLS_LEVEL_3,
+        4: DRUID_SPELLS_LEVEL_4,
+        5: DRUID_SPELLS_LEVEL_5,
+        6: DRUID_SPELLS_LEVEL_6,
+        7: DRUID_SPELLS_LEVEL_7,
+    },
+    "Magic-User": {
+        1: MAGIC_USER_SPELLS_LEVEL_1,
+        2: MAGIC_USER_SPELLS_LEVEL_2,
+        3: MAGIC_USER_SPELLS_LEVEL_3,
+        4: MAGIC_USER_SPELLS_LEVEL_4,
+        5: MAGIC_USER_SPELLS_LEVEL_5,
+        6: MAGIC_USER_SPELLS_LEVEL_6,
+        7: MAGIC_USER_SPELLS_LEVEL_7,
+    },
+    "Illusionist": {
+        1: ILLUSIONIST_SPELLS_LEVEL_1,
+        2: ILLUSIONIST_SPELLS_LEVEL_2,
+        3: ILLUSIONIST_SPELLS_LEVEL_3,
+        4: ILLUSIONIST_SPELLS_LEVEL_4,
+        5: ILLUSIONIST_SPELLS_LEVEL_5,
+        6: ILLUSIONIST_SPELLS_LEVEL_6,
+        7: ILLUSIONIST_SPELLS_LEVEL_7,
+    },
+    "Paladin": {  # Uses Cleric spell list, levels 1-4 only
+        1: CLERIC_SPELLS_LEVEL_1,
+        2: CLERIC_SPELLS_LEVEL_2,
+        3: CLERIC_SPELLS_LEVEL_3,
+        4: CLERIC_SPELLS_LEVEL_4,
+    },
+}

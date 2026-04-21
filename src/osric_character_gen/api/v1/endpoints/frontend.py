@@ -353,6 +353,13 @@ h1 {
 <body>
 
 <div class="toolbar">
+  <label for="level-select" style="color:var(--text-color);font-family:'Courier New',monospace;font-size:0.85rem;">Level:</label>
+  <select id="level-select" onchange="generateCharacter()" style="background:var(--section-bg);color:var(--text-color);border:1px solid var(--border);padding:4px 8px;font-family:'Courier New',monospace;font-size:0.85rem;">
+    <option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+    <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+    <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option>
+    <option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option>
+  </select>
   <button id="generate-new" onclick="generateCharacter()">Generate New Character</button>
   <button id="download-pdf" onclick="downloadPdf()" disabled>Download PDF</button>
   <span class="seed-display" id="seed-display"></span>
@@ -531,7 +538,8 @@ async function generateCharacter() {
   content.style.display = 'none';
 
   try {
-    const resp = await fetch('/api/v1/characters/generate');
+    const level = document.getElementById('level-select').value;
+    const resp = await fetch('/api/v1/characters/generate?level=' + level);
     if (!resp.ok) throw new Error('Generation failed: ' + resp.status);
     const data = await resp.json();
     currentSeed = data.character.generation_seed;
@@ -551,7 +559,8 @@ async function generateCharacter() {
 
 function downloadPdf() {
   if (currentSeed === null) return;
-  window.open('/api/v1/characters/generate/pdf?seed=' + encodeURIComponent(currentSeed), '_blank');
+  const level = document.getElementById('level-select').value;
+  window.open('/api/v1/characters/generate/pdf?seed=' + encodeURIComponent(currentSeed) + '&level=' + level, '_blank');
 }
 
 function renderCharacter(c) {

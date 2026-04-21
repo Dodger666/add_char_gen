@@ -10,20 +10,24 @@ from osric_character_gen.data.ability_tables import (
 )
 from osric_character_gen.data.ancestries import STALWART_ANCESTRIES, STALWART_BONUS
 from osric_character_gen.data.classes import (
+    BACKSTAB_TABLE,
     CLASS_PRIME_REQUISITES,
-    CLASS_SPELL_SLOTS,
-    CLASS_THAC0,
+    CLASS_PROFICIENCY_GAIN_LEVELS,
+    CLASS_PROFICIENCY_SLOTS,
+    RANGER_DRUID_SLOTS,
+    SPELL_SLOT_TABLES,
     XP_BONUS_PERCENT,
     XP_BONUS_THRESHOLD,
+    get_thac0,
 )
-from osric_character_gen.data.saving_throws import SAVING_THROWS_LEVEL_1
+from osric_character_gen.data.saving_throws import get_saving_throws
 from osric_character_gen.data.thief_skills import (
     ANCESTRY_THIEF_ADJUSTMENTS,
-    BASE_THIEF_SKILLS,
     DEX_THIEF_ADJUSTMENTS,
     MONK_EXCLUDED_SKILLS,
+    THIEF_SKILLS_BY_LEVEL,
 )
-from osric_character_gen.data.turn_undead import TURN_UNDEAD_LEVEL_1
+from osric_character_gen.data.turn_undead import get_turn_undead
 from osric_character_gen.models.character import (
     AbilityBonuses,
     AbilityScores,
@@ -91,14 +95,13 @@ class DerivedStatsCalculator:
     def calculate_saving_throws(
         self,
         class_name: ClassName,
-        _level: int,
+        level: int,
         wis_mental_save: int,
         ancestry: AncestryName | None = None,
         constitution: int = 10,
     ) -> SavingThrows:
         """Look up base saves and apply modifiers."""
-        base = SAVING_THROWS_LEVEL_1[class_name]
-        aimed, breath, death, petri, spells = base
+        aimed, breath, death, petri, spells = get_saving_throws(class_name, level)
 
         # WIS mental save applies to Spells category
         spells_modified = spells - wis_mental_save
@@ -120,9 +123,9 @@ class DerivedStatsCalculator:
             spells=spells_modified,
         )
 
-    def calculate_thac0(self, class_name: ClassName, _level: int) -> tuple[int, int]:
+    def calculate_thac0(self, class_name: ClassName, level: int) -> tuple[int, int]:
         """Return (thac0, bthb)."""
-        return CLASS_THAC0[class_name]
+        return get_thac0(class_name, level)
 
     def calculate_encumbrance(
         self,
@@ -153,9 +156,17 @@ class DerivedStatsCalculator:
         effective = min(enc_movement, armor_cap)
         return status, effective
 
-    def calculate_thief_skills(self, class_name: ClassName, ancestry: AncestryName, dexterity: int) -> ThiefSkills:
+    def calculate_thief_skills(
+        self,
+        class_name: ClassName,
+        ancestry: AncestryName,
+        dexterity: int,
+        level: int = 1,
+    ) -> ThiefSkills:
         """Calculate thief skills with DEX and ancestry adjustments."""
-        skills = dict(BASE_THIEF_SKILLS)
+        # Use level-based base values; clamp to max available level (17)
+        effective_level = min(level, max(THIEF_SKILLS_BY_LEVEL.keys()))
+        skills = dict(THIEF_SKILLS_BY_LEVEL[effective_level])
 
         # Apply DEX adjustments
         dex_adj = DEX_THIEF_ADJUSTMENTS.get(dexterity, {})
@@ -179,28 +190,67 @@ class DerivedStatsCalculator:
 
         return ThiefSkills(**skills)
 
-    def calculate_turn_undead(self, _level: int) -> list[TurnUndeadEntry]:
+    def calculate_turn_undead(self, level: int) -> list[TurnUndeadEntry]:
         """Return turn undead table for cleric at given level."""
-        return [TurnUndeadEntry(undead_type=t[0], example=t[1], roll_needed=t[2]) for t in TURN_UNDEAD_LEVEL_1]
+        entries = get_turn_undead(level)
+        return [TurnUndeadEntry(undead_type=t[0], example=t[1], roll_needed=t[2]) for t in entries]
 
-    def calculate_spell_slots(self, class_name: ClassName, _level: int, wisdom: int) -> SpellSlots | None:
+    def calculate_spell_slots(self, class_name: ClassName, level: int, wisdom: int) -> SpellSlots | None:
         """Calculate spell slots including WIS bonus spells."""
-        slot_info = CLASS_SPELL_SLOTS.get(class_name)
-        if slot_info is None:
+        # Ranger has dual spellcasting
+        if class_name == ClassName.RANGER:
+            return self._calculate_ranger_spell_slots(level)
+
+        # Paladin gets spells at level 9+
+        if class_name == ClassName.PALADIN:
+            return self._calculate_paladin_spell_slots(level)
+
+        slot_table = SPELL_SLOT_TABLES.get(class_name)
+        if slot_table is None:
             return None
 
-        base_slots, spell_type = slot_info
-        slots = {f"level_{i}": 0 for i in range(1, 8)}
-        slots["level_1"] = base_slots
+        # Find the effective level (clamp to max in table)
+        max_table_level = max(slot_table.keys())
+        effective_level = min(level, max_table_level)
+        base = slot_table[effective_level]
+
+        slots = {f"level_{i + 1}": base[i] for i in range(7)}
 
         # WIS bonus spells (cleric/druid only)
-        if spell_type in ("divine", "druidic"):
+        if class_name in (ClassName.CLERIC, ClassName.DRUID):
             _, bonus_list = get_wisdom_bonuses(wisdom)
             for bonus in bonus_list:
                 level_key = f"level_{bonus['level']}"
-                if level_key in slots:
+                if level_key in slots and slots[level_key] > 0:
                     slots[level_key] += bonus["slots"]
 
+        return SpellSlots(**slots)
+
+    def _calculate_paladin_spell_slots(self, level: int) -> SpellSlots | None:
+        """Paladin gets cleric spells at level 9+."""
+        slot_table = SPELL_SLOT_TABLES.get(ClassName.PALADIN)
+        if slot_table is None or level < 9:
+            return None
+        max_table_level = max(slot_table.keys())
+        effective_level = min(level, max_table_level)
+        base = slot_table[effective_level]
+        if all(s == 0 for s in base):
+            return None
+        slots = {f"level_{i + 1}": base[i] for i in range(7)}
+        return SpellSlots(**slots)
+
+    def _calculate_ranger_spell_slots(self, level: int) -> SpellSlots | None:
+        """Ranger gets druid spells at 8+, magic-user spells at 9+."""
+        if level < 8:
+            return None
+        slots = {f"level_{i}": 0 for i in range(1, 8)}
+        # Druid spells (level 8+)
+        druid = RANGER_DRUID_SLOTS.get(level)
+        if druid is None and level > max(RANGER_DRUID_SLOTS.keys()):
+            druid = RANGER_DRUID_SLOTS[max(RANGER_DRUID_SLOTS.keys())]
+        if druid:
+            for i, val in enumerate(druid):
+                slots[f"level_{i + 1}"] += val
         return SpellSlots(**slots)
 
     def calculate_xp_bonus(self, class_name: ClassName, scores: AbilityScores) -> int:
@@ -222,3 +272,17 @@ class DerivedStatsCalculator:
             if score_dict[attr] < XP_BONUS_THRESHOLD:
                 return 0
         return XP_BONUS_PERCENT
+
+    def calculate_proficiency_slots(self, class_name: ClassName, level: int) -> int:
+        """Calculate total weapon proficiency slots at a given level."""
+        base = CLASS_PROFICIENCY_SLOTS[class_name]
+        gain_levels = CLASS_PROFICIENCY_GAIN_LEVELS[class_name]
+        extra = sum(1 for lvl in gain_levels if lvl <= level)
+        return base + extra
+
+    def calculate_backstab_multiplier(self, level: int) -> int:
+        """Return backstab damage multiplier for thief/assassin level."""
+        for max_lvl, mult in BACKSTAB_TABLE:
+            if level <= max_lvl:
+                return mult
+        return BACKSTAB_TABLE[-1][1]

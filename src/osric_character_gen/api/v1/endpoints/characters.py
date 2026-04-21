@@ -16,10 +16,11 @@ _service = CharacterGeneratorService()
 @router.get("/generate", response_model=GenerateCharacterResponse)
 async def generate_character(
     seed: int | None = Query(default=None, description="Optional seed for deterministic generation"),
+    level: int = Query(default=1, ge=1, le=20, description="Character level (1-20)"),
 ) -> GenerateCharacterResponse:
     """Generate a complete OSRIC 3.0 character as JSON."""
     try:
-        sheet, metadata = _service.generate(seed=seed)
+        sheet, metadata = _service.generate(seed=seed, level=level)
     except MaxRetriesExceededError as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -32,10 +33,11 @@ async def generate_character(
 @router.get("/generate/pdf")
 async def generate_character_pdf(
     seed: int | None = Query(default=None, description="Optional seed for deterministic generation"),
+    level: int = Query(default=1, ge=1, le=20, description="Character level (1-20)"),
 ) -> Response:
     """Generate a complete OSRIC 3.0 character as downloadable PDF."""
     try:
-        sheet, _metadata = _service.generate(seed=seed)
+        sheet, _metadata = _service.generate(seed=seed, level=level)
     except MaxRetriesExceededError as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

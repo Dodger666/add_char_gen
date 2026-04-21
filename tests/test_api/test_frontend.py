@@ -56,3 +56,9 @@ class TestFrontendPage:
         html = response.text
         assert "<style>" in html or '<style type="text/css">' in html
         assert "<script>" in html or '<script type="text/javascript">' in html
+
+    def test_page_contains_level_selector(self, client: TestClient) -> None:
+        response = client.get("/")
+        html = response.text
+        assert 'id="level-select"' in html
+        assert "<option" in html

@@ -33,7 +33,7 @@ indent-width = 4
 select = [
     "E", "W", "F", "I", "N", "UP", "B", "C4", "SIM", "TCH",
 ]
-per-file-ignores = {"src/osric_character_gen/api/v1/endpoints/frontend.py" = ["E501"]}
+per-file-ignores = {"src/osric_character_gen/api/v1/endpoints/frontend.py" = ["E501"], "src/osric_character_gen/data/thief_skills.py" = ["E501"]}
 
 [tool.ruff.format]
 quote-style = "double"

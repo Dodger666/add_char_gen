@@ -8,11 +8,15 @@ from osric_character_gen.data.ancestries import (
     ANCESTRY_MOVEMENT,
 )
 from osric_character_gen.data.classes import (
+    CLASS_FIXED_HP_PER_LEVEL,
     CLASS_HIT_DICE_COUNT,
     CLASS_HIT_DIE,
-    CLASS_PROFICIENCY_SLOTS,
+    CLASS_HIT_DIE_CAP,
+    CLASS_MAX_LEVEL,
     CLASS_STARTING_GOLD,
+    CLASS_XP_TABLE,
 )
+from osric_character_gen.data.monk_tables import MONK_ABILITIES, MONK_AC, MONK_DAMAGE, MONK_MOVEMENT
 from osric_character_gen.domain.ancestry_selector import AncestrySelector
 from osric_character_gen.domain.class_selector import (
     ClassSelector,
@@ -46,7 +50,7 @@ class CharacterGeneratorService:
         self._equipment_purchaser = EquipmentPurchaser()
         self._stats_calculator = DerivedStatsCalculator()
 
-    def generate(self, seed: int | None = None) -> tuple[CharacterSheet, dict]:
+    def generate(self, seed: int | None = None, level: int = 1) -> tuple[CharacterSheet, dict]:
         """Main generation entry point."""
         if seed is None:
             seed = random.randint(0, 2**31 - 1)
@@ -116,11 +120,24 @@ class CharacterGeneratorService:
         # Step 9: Calculate ability bonuses (needed for HP)
         bonuses = self._stats_calculator.calculate_ability_bonuses(adjusted_scores, class_name)
 
-        # Step 10: Roll hit points
+        # Cap level at class maximum
+        effective_level = min(level, CLASS_MAX_LEVEL[class_name])
+
+        # Step 10: Roll hit points (multi-level)
         hit_die = CLASS_HIT_DIE[class_name]
         dice_count = CLASS_HIT_DICE_COUNT[class_name]
         min_die_val = 2 if adjusted_scores.constitution >= 19 else 1
-        hit_points = roller.roll_hit_points(hit_die, bonuses.con_hp_mod, dice_count, min_die_val)
+        hit_die_cap = CLASS_HIT_DIE_CAP[class_name]
+        fixed_hp = CLASS_FIXED_HP_PER_LEVEL[class_name]
+        hit_points = roller.roll_hit_points_multi_level(
+            hit_die,
+            bonuses.con_hp_mod,
+            effective_level,
+            hit_die_cap,
+            fixed_hp,
+            level_1_dice=dice_count,
+            min_die_val=min_die_val,
+        )
 
         # Step 11: Select alignment
         from osric_character_gen.data.classes import CLASS_ALIGNMENTS
@@ -141,13 +158,13 @@ class CharacterGeneratorService:
 
         saving_throws = self._stats_calculator.calculate_saving_throws(
             class_name,
-            1,
+            effective_level,
             bonuses.wis_mental_save,
             ancestry=ancestry,
             constitution=adjusted_scores.constitution,
         )
 
-        thac0, bthb = self._stats_calculator.calculate_thac0(class_name, 1)
+        thac0, bthb = self._stats_calculator.calculate_thac0(class_name, effective_level)
 
         base_movement = ANCESTRY_MOVEMENT[ancestry]
         armor_cap = loadout.armor.movement_cap if loadout.armor else 999
@@ -163,16 +180,16 @@ class CharacterGeneratorService:
         thief_skills = None
         if class_name in thief_skill_classes:
             thief_skills = self._stats_calculator.calculate_thief_skills(
-                class_name, ancestry, adjusted_scores.dexterity
+                class_name, ancestry, adjusted_scores.dexterity, effective_level
             )
 
         # Turn undead
         turn_undead = None
         if class_name == ClassName.CLERIC:
-            turn_undead = self._stats_calculator.calculate_turn_undead(1)
+            turn_undead = self._stats_calculator.calculate_turn_undead(effective_level)
 
         # Spell slots and spells
-        spell_slots = self._stats_calculator.calculate_spell_slots(class_name, 1, adjusted_scores.wisdom)
+        spell_slots = self._stats_calculator.calculate_spell_slots(class_name, effective_level, adjusted_scores.wisdom)
         spells_memorized, spellbook = spell_selector.select_starting_spells(class_name, spell_slots)
 
         # XP bonus
@@ -211,6 +228,11 @@ class CharacterGeneratorService:
             if exc_str is not None and age_adj.get("strength", 0) < 0:
                 exc_str = None  # Lose exceptional on strength decrease
 
+            # If age adjustment brought STR to 18 for a fighter type, roll exceptional
+            fighter_types = {ClassName.FIGHTER, ClassName.PALADIN, ClassName.RANGER}
+            if exc_str is None and final_str == 18 and class_name in fighter_types and adjusted_scores.strength < 18:
+                exc_str = roller.roll_percentile()
+
             adjusted_scores = AbilityScores(
                 strength=final_str,
                 dexterity=final_dex,
@@ -224,11 +246,11 @@ class CharacterGeneratorService:
             bonuses = self._stats_calculator.calculate_ability_bonuses(adjusted_scores, class_name)
 
         # Weapon proficiencies
-        prof_slots = CLASS_PROFICIENCY_SLOTS[class_name]
+        prof_slots = self._stats_calculator.calculate_proficiency_slots(class_name, effective_level)
         weapon_profs = [w.name for w in loadout.weapons[:prof_slots]]
 
         # Class features
-        class_features = self._build_class_features(class_name, spell_slots, bonuses, adjusted_scores)
+        class_features = self._build_class_features(class_name, effective_level, spell_slots, bonuses, adjusted_scores)
 
         # Languages
         languages = list(ANCESTRY_LANGUAGES[ancestry])
@@ -237,18 +259,31 @@ class CharacterGeneratorService:
         name_gen = HolmesianNameGenerator(roller)
         character_name = name_gen.generate(include_title=True)
 
+        # XP for level
+        xp_table = CLASS_XP_TABLE.get(class_name, {})
+        xp = xp_table.get(effective_level, 0)
+
+        # Monk AC override
+        ac_desc_final, ac_asc_final = ac_desc, ac_asc
+        if class_name == ClassName.MONK and effective_level in MONK_AC:
+            monk_desc, monk_asc = MONK_AC[effective_level]
+            # Use best of monk natural AC or equipped AC
+            if monk_desc < ac_desc_final:
+                ac_desc_final = monk_desc
+                ac_asc_final = 20 - monk_desc
+
         # Build the character sheet
         sheet = CharacterSheet(
             name=character_name,
             character_class=class_name,
-            level=1,
+            level=effective_level,
             alignment=alignment,
             ancestry=ancestry,
-            xp=0,
+            xp=xp,
             xp_bonus_pct=xp_bonus,
             hit_points=hit_points,
-            armor_class_desc=ac_desc,
-            armor_class_asc=ac_asc,
+            armor_class_desc=ac_desc_final,
+            armor_class_asc=ac_asc_final,
             physical=physical,
             ability_scores=adjusted_scores,
             ability_bonuses=bonuses,
@@ -294,59 +329,81 @@ class CharacterGeneratorService:
     def _build_class_features(
         self,
         class_name: ClassName,
+        level: int,
         spell_slots,
         bonuses,
         scores: AbilityScores,
     ) -> list[str]:
         """Build list of class features for display."""
         features = []
+        backstab_mult = self._stats_calculator.calculate_backstab_multiplier(level)
 
         if class_name == ClassName.CLERIC:
             features.append("Turn Undead")
             if spell_slots:
-                features.append(f"Divine Spellcasting ({spell_slots.level_1} first-level slots)")
+                total = sum(getattr(spell_slots, f"level_{i}") for i in range(1, 8))
+                features.append(f"Divine Spellcasting ({total} total slots)")
 
         elif class_name == ClassName.DRUID:
             if spell_slots:
-                features.append(f"Druidic Spellcasting ({spell_slots.level_1} first-level slots)")
+                total = sum(getattr(spell_slots, f"level_{i}") for i in range(1, 8))
+                features.append(f"Druidic Spellcasting ({total} total slots)")
 
         elif class_name == ClassName.MAGIC_USER:
             if spell_slots:
-                features.append(f"Arcane Spellcasting ({spell_slots.level_1} first-level slots)")
-            features.append("Spellbook (4 starting spells)")
+                total = sum(getattr(spell_slots, f"level_{i}") for i in range(1, 8))
+                features.append(f"Arcane Spellcasting ({total} total slots)")
+            features.append("Spellbook")
 
         elif class_name == ClassName.ILLUSIONIST:
             if spell_slots:
-                features.append(f"Phantasmal Spellcasting ({spell_slots.level_1} first-level slots)")
-            features.append("Spellbook (3 starting spells)")
+                total = sum(getattr(spell_slots, f"level_{i}") for i in range(1, 8))
+                features.append(f"Phantasmal Spellcasting ({total} total slots)")
+            features.append("Spellbook")
 
         elif class_name == ClassName.THIEF:
-            features.append("Backstab (×2 damage)")
+            features.append(f"Backstab (×{backstab_mult} damage)")
             features.append("Thief Skills")
 
         elif class_name == ClassName.ASSASSIN:
-            features.append("Assassination")
-            features.append("Backstab (×2 damage)")
+            assassination_pct = min(99, 50 + 5 * level)
+            features.append(f"Assassination ({assassination_pct}% base)")
+            features.append(f"Backstab (×{backstab_mult} damage)")
             features.append("Thief Skills")
 
         elif class_name == ClassName.MONK:
-            features.append("Monk AC 10 at level 1")
-            features.append("Weaponless combat: 1d3 damage")
+            monk_ac = MONK_AC.get(level, MONK_AC[max(MONK_AC.keys())])
+            monk_dmg = MONK_DAMAGE.get(level, MONK_DAMAGE[max(MONK_DAMAGE.keys())])
+            monk_move = MONK_MOVEMENT.get(level, MONK_MOVEMENT[max(MONK_MOVEMENT.keys())])
+            features.append(f"Monk AC {monk_ac[0]} [{monk_ac[1]}]")
+            features.append(f"Weaponless combat: {monk_dmg} damage")
             features.append("Thief Skills (limited)")
-            features.append("Movement Rate: 150 ft")
+            features.append(f"Movement Rate: {monk_move} ft")
+            # Add cumulative abilities
+            for ability_level in sorted(MONK_ABILITIES.keys()):
+                if ability_level <= level:
+                    features.append(MONK_ABILITIES[ability_level])
 
         elif class_name == ClassName.PALADIN:
             features.append("+2 to all saving throws (built into table)")
             features.append("Detect Evil (60 ft)")
-            features.append("Lay on Hands (2 HP per level per day)")
+            features.append(f"Lay on Hands ({2 * level} HP per day)")
             features.append("Immune to disease")
+            if spell_slots:
+                total = sum(getattr(spell_slots, f"level_{i}") for i in range(1, 8))
+                features.append(f"Divine Spellcasting ({total} total slots, level 9+)")
 
         elif class_name == ClassName.RANGER:
-            features.append("+1 damage per level vs giant-class creatures")
+            features.append(f"+{level} damage per level vs giant-class creatures")
             features.append("Tracking")
             features.append("Surprise on 1-3 (d6)")
+            if spell_slots:
+                total = sum(getattr(spell_slots, f"level_{i}") for i in range(1, 8))
+                features.append(f"Spellcasting ({total} total slots)")
 
         elif class_name == ClassName.FIGHTER:
+            if level >= 2:
+                features.append("Heroic Assault (cleave extra attacks)")
             features.append("Weapon specialization available (not implemented)")
 
         return features

@@ -165,6 +165,24 @@ class TestSavingThrows:
         assert saves.petrifaction_polymorph == 15
         assert saves.spells == 17
 
+    def test_fighter_level_5(self, calc: DerivedStatsCalculator) -> None:
+        saves = calc.calculate_saving_throws(ClassName.FIGHTER, 5, 0)
+        assert saves.aimed_magic_items == 13
+        assert saves.breath_weapons == 13
+        assert saves.death_paralysis_poison == 11
+        assert saves.petrifaction_polymorph == 12
+        assert saves.spells == 14
+
+    def test_paladin_level_10(self, calc: DerivedStatsCalculator) -> None:
+        saves = calc.calculate_saving_throws(ClassName.PALADIN, 10, 0)
+        assert saves.aimed_magic_items == 8
+        assert saves.breath_weapons == 7
+
+    def test_thief_level_9(self, calc: DerivedStatsCalculator) -> None:
+        saves = calc.calculate_saving_throws(ClassName.THIEF, 9, 0)
+        assert saves.aimed_magic_items == 10
+        assert saves.death_paralysis_poison == 11
+
     def test_wis_modifier_applies_to_spells(
         self,
         calc: DerivedStatsCalculator,
@@ -200,6 +218,21 @@ class TestThac0:
         assert thac0 == 21
         assert bthb == -1
 
+    def test_fighter_level_5(self, calc: DerivedStatsCalculator) -> None:
+        thac0, bthb = calc.calculate_thac0(ClassName.FIGHTER, 5)
+        assert thac0 == 16
+        assert bthb == 4
+
+    def test_thief_level_9(self, calc: DerivedStatsCalculator) -> None:
+        thac0, bthb = calc.calculate_thac0(ClassName.THIEF, 9)
+        assert thac0 == 16
+        assert bthb == 4
+
+    def test_magic_user_level_16(self, calc: DerivedStatsCalculator) -> None:
+        thac0, bthb = calc.calculate_thac0(ClassName.MAGIC_USER, 16)
+        assert thac0 == 11
+        assert bthb == 9
+
 
 class TestEncumbrance:
     def test_unencumbered(self, calc: DerivedStatsCalculator) -> None:
@@ -225,46 +258,77 @@ class TestEncumbrance:
 
 class TestThiefSkills:
     def test_base_human_thief(self, calc: DerivedStatsCalculator) -> None:
-        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.HUMAN, 14)
+        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.HUMAN, 14, 1)
         # Human: +5 climb, +5 pick_locks
         assert skills.climb == 90
         assert skills.pick_locks == 30
         assert skills.hide == 10
 
     def test_halfling_thief_high_dex(self, calc: DerivedStatsCalculator) -> None:
-        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.HALFLING, 18)
+        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.HALFLING, 18, 1)
         # Base hide=10to +15 ancestry +10 dex = 35
         assert skills.hide == 35
         # Base move_quietly=15 +15 ancestry +10 dex = 40
         assert skills.move_quietly == 40
 
     def test_monk_no_pick_pockets(self, calc: DerivedStatsCalculator) -> None:
-        skills = calc.calculate_thief_skills(ClassName.MONK, AncestryName.HUMAN, 15)
+        skills = calc.calculate_thief_skills(ClassName.MONK, AncestryName.HUMAN, 15, 1)
         assert skills.pick_pockets == 1
         assert skills.read_languages == 1
 
     def test_minimum_one_pct(self, calc: DerivedStatsCalculator) -> None:
         # Low DEX + bad ancestry should never go below 1
-        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.DWARF, 9)
+        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.DWARF, 9, 1)
         for field in ThiefSkills.model_fields:
             assert getattr(skills, field) >= 1
+
+    def test_thief_level_5(self, calc: DerivedStatsCalculator) -> None:
+        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.HUMAN, 14, 5)
+        # Level 5 base: climb=89, hide=31, pick_locks=42
+        # Human: +5 climb, +5 pick_locks
+        assert skills.climb == 94
+        assert skills.hide == 31
+        assert skills.pick_locks == 47
+
+    def test_thief_level_10(self, calc: DerivedStatsCalculator) -> None:
+        skills = calc.calculate_thief_skills(ClassName.THIEF, AncestryName.HUMAN, 14, 10)
+        # Level 10 base: pick_pockets=80
+        assert skills.pick_pockets == 80
 
 
 class TestTurnUndead:
     def test_cleric_level_1(self, calc: DerivedStatsCalculator) -> None:
         table = calc.calculate_turn_undead(1)
-        assert len(table) == 6
+        assert len(table) >= 5
         assert table[0].roll_needed == 10
-        assert table[5].roll_needed == "—"
+        # Type 6 (Ghast) cannot be turned at level 1
+        types = [e.undead_type for e in table]
+        assert "Type 6" not in types
+
+    def test_cleric_level_4_has_auto_turn(self, calc: DerivedStatsCalculator) -> None:
+        table = calc.calculate_turn_undead(4)
+        rolls = [e.roll_needed for e in table]
+        assert "T" in rolls
+
+    def test_cleric_level_9_has_destroy(self, calc: DerivedStatsCalculator) -> None:
+        table = calc.calculate_turn_undead(9)
+        rolls = [e.roll_needed for e in table]
+        assert "D" in rolls
+
+    def test_cleric_level_9_more_entries_than_1(self, calc: DerivedStatsCalculator) -> None:
+        t1 = calc.calculate_turn_undead(1)
+        t9 = calc.calculate_turn_undead(9)
+        assert len(t9) > len(t1)
 
 
 class TestSpellSlots:
     def test_cleric_with_wis_16(self, calc: DerivedStatsCalculator) -> None:
         slots = calc.calculate_spell_slots(ClassName.CLERIC, 1, 16)
         assert slots is not None
-        # WIS 16: +1(wis13) + 1(wis14) level-1, +1(wis15) + 1(wis16) level-2
+        # WIS 16: +1(wis13) + 1(wis14) level-1 bonus
+        # Level-2 bonus not applicable at level 1 (no base level-2 slots)
         assert slots.level_1 == 3  # 1 base + 2 bonus
-        assert slots.level_2 == 2  # +1(wis15) + 1(wis16)
+        assert slots.level_2 == 0  # no base slots = no bonus
 
     def test_fighter_no_spells(self, calc: DerivedStatsCalculator) -> None:
         slots = calc.calculate_spell_slots(ClassName.FIGHTER, 1, 10)
@@ -279,6 +343,64 @@ class TestSpellSlots:
         slots = calc.calculate_spell_slots(ClassName.DRUID, 1, 12)
         assert slots is not None
         assert slots.level_1 == 2
+
+    def test_cleric_level_9(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.CLERIC, 9, 10)
+        assert slots is not None
+        assert slots.level_1 == 4
+        assert slots.level_2 == 4
+        assert slots.level_3 == 3
+        assert slots.level_4 == 2
+        assert slots.level_5 == 1
+
+    def test_magic_user_level_14(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.MAGIC_USER, 14, 10)
+        assert slots is not None
+        assert slots.level_1 == 5
+        assert slots.level_7 == 1
+
+    def test_paladin_no_spells_at_8(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.PALADIN, 8, 10)
+        assert slots is None
+
+    def test_paladin_gets_spells_at_9(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.PALADIN, 9, 10)
+        assert slots is not None
+        assert slots.level_1 == 1
+
+    def test_ranger_no_spells_at_7(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.RANGER, 7, 10)
+        assert slots is None
+
+    def test_ranger_druid_spells_at_8(self, calc: DerivedStatsCalculator) -> None:
+        slots = calc.calculate_spell_slots(ClassName.RANGER, 8, 10)
+        assert slots is not None
+        assert slots.level_1 == 1  # 1 druid spell
+
+
+class TestProficiencySlots:
+    def test_fighter_level_1(self, calc: DerivedStatsCalculator) -> None:
+        assert calc.calculate_proficiency_slots(ClassName.FIGHTER, 1) == 4
+
+    def test_fighter_level_3(self, calc: DerivedStatsCalculator) -> None:
+        assert calc.calculate_proficiency_slots(ClassName.FIGHTER, 3) == 5
+
+    def test_thief_level_6(self, calc: DerivedStatsCalculator) -> None:
+        assert calc.calculate_proficiency_slots(ClassName.THIEF, 6) == 3
+
+    def test_magic_user_level_1(self, calc: DerivedStatsCalculator) -> None:
+        assert calc.calculate_proficiency_slots(ClassName.MAGIC_USER, 1) == 1
+
+
+class TestBackstabMultiplier:
+    def test_level_1(self, calc: DerivedStatsCalculator) -> None:
+        assert calc.calculate_backstab_multiplier(1) == 2
+
+    def test_level_5(self, calc: DerivedStatsCalculator) -> None:
+        assert calc.calculate_backstab_multiplier(5) == 3
+
+    def test_level_13(self, calc: DerivedStatsCalculator) -> None:
+        assert calc.calculate_backstab_multiplier(13) == 5
 
 
 class TestXPBonus:

@@ -39,7 +39,41 @@ class DiceRoller:
             die_roll = self.roll(hit_die)
             if die_roll < min_die_val:
                 die_roll = min_die_val
-            total += die_roll + con_mod
+            total += max(1, die_roll + con_mod)
+        return max(1, total)
+
+    def roll_hit_points_multi_level(
+        self,
+        hit_die: int,
+        con_mod: int,
+        level: int,
+        hit_die_cap: int,
+        fixed_hp: int,
+        level_1_dice: int = 1,
+        min_die_val: int = 1,
+    ) -> int:
+        """Roll HP for multiple levels.
+
+        - Level 1: roll level_1_dice dice (e.g. 2 for Ranger/Monk)
+        - Levels 2 through hit_die_cap: roll 1 die each
+        - Levels above hit_die_cap: add fixed_hp per level (no CON bonus)
+        """
+        total = 0
+        # Level 1
+        for _ in range(level_1_dice):
+            die_roll = self.roll(hit_die)
+            if die_roll < min_die_val:
+                die_roll = min_die_val
+            total += max(1, die_roll + con_mod)
+        # Levels 2 through min(level, hit_die_cap)
+        for _ in range(2, min(level, hit_die_cap) + 1):
+            die_roll = self.roll(hit_die)
+            if die_roll < min_die_val:
+                die_roll = min_die_val
+            total += max(1, die_roll + con_mod)
+        # Levels above hit_die_cap
+        if level > hit_die_cap:
+            total += fixed_hp * (level - hit_die_cap)
         return max(1, total)
 
     def roll_gold(self, dice_count: int, dice_sides: int, multiplier: int = 10) -> int:
