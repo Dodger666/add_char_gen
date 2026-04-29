@@ -315,18 +315,18 @@ CLASS_WEAPONS_ALLOWED: dict[ClassName, list[str] | None] = {
     ],
 }
 
-# THAC0 and BTHB at level 1
+# THAC0 and BTHB at level 1 (OSRIC: all classes start at 20/0)
 CLASS_THAC0: dict[ClassName, tuple[int, int]] = {
-    ClassName.ASSASSIN: (21, -1),
+    ClassName.ASSASSIN: (20, 0),
     ClassName.CLERIC: (20, 0),
     ClassName.DRUID: (20, 0),
     ClassName.FIGHTER: (20, 0),
-    ClassName.ILLUSIONIST: (21, -1),
-    ClassName.MAGIC_USER: (21, -1),
+    ClassName.ILLUSIONIST: (20, 0),
+    ClassName.MAGIC_USER: (20, 0),
     ClassName.MONK: (20, 0),
     ClassName.PALADIN: (20, 0),
     ClassName.RANGER: (20, 0),
-    ClassName.THIEF: (21, -1),
+    ClassName.THIEF: (20, 0),
 }
 
 # Full THAC0/BTHB progression: list of (max_level, thac0, bthb)
@@ -352,14 +352,14 @@ _CLERIC_THAC0: list[tuple[int, int, int]] = [
     (20, 8, 12),
 ]
 _THIEF_THAC0: list[tuple[int, int, int]] = [
-    (4, 21, -1),
+    (4, 20, 0),
     (8, 19, 1),
     (12, 16, 4),
     (16, 14, 6),
     (20, 12, 8),
 ]
 _MU_THAC0: list[tuple[int, int, int]] = [
-    (5, 21, -1),
+    (5, 20, 0),
     (10, 19, 1),
     (15, 16, 4),
     (20, 11, 9),

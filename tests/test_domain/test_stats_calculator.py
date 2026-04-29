@@ -215,8 +215,8 @@ class TestThac0:
 
     def test_thief_thac0(self, calc: DerivedStatsCalculator) -> None:
         thac0, bthb = calc.calculate_thac0(ClassName.THIEF, 1)
-        assert thac0 == 21
-        assert bthb == -1
+        assert thac0 == 20
+        assert bthb == 0
 
     def test_fighter_level_5(self, calc: DerivedStatsCalculator) -> None:
         thac0, bthb = calc.calculate_thac0(ClassName.FIGHTER, 5)

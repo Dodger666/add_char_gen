@@ -12,6 +12,9 @@
 | 01 | [Functional Specification](specs/01-functional-specification.md) | Business requirements, character creation workflow, step-by-step algorithms, edge cases, data validation rules | `docs/specs/01-functional-specification.md` |
 | 02 | [Technical Specification](specs/02-technical-specification.md) | Architecture, technology stack, project structure, data models (Pydantic), API contract, domain module interfaces, testing strategy, configuration, deployment | `docs/specs/02-technical-specification.md` |
 | 03 | [Game Data Reference](specs/03-game-data-reference.md) | Complete OSRIC 3.0 rule data tables: ability bonuses, class definitions, ancestry definitions, saving throws, THAC0, thief skills, turn undead, equipment, spells, encumbrance | `docs/specs/03-game-data-reference.md` |
+| 04 | [Level Choice Specification](specs/04-level-choice-specification.md) | Level parameter support, HP/THAC0/saves/skills/spells progression tables, multi-level generation | `docs/specs/04-level-choice-specification.md` |
+| 05 | [Magical Items Specification](specs/05-magical-items-specification.md) | DMG Appendix P magical item tables, per-level percentage chances, enhancement rolls | `docs/specs/05-magical-items-specification.md` |
+| 06 | [Character Sheet Manager Specification](specs/06-character-sheet-manager-specification.md) | Persistent character management: SQLite storage, secret key auth, editable HTML forms, campaign system with admin keys, version history | `docs/specs/06-character-sheet-manager-specification.md` |
 
 ---
 
@@ -33,19 +36,21 @@ All diagrams use Mermaid syntax and are embedded inline in the specification doc
 
 | Metric | Value |
 |--------|-------|
-| Requirements documented | 33 (FR-001 through FR-033) |
+| Requirements documented | 33 (FR-001–FR-033) + 23 (LV) + 17 (MI) + 28 (CSM) |
 | Character creation steps specified | 16 |
 | Classes covered | 10 |
 | Ancestries covered | 7 |
 | Data tables defined | 30+ |
-| API endpoints | 3 (POST /generate, POST /generate/pdf, GET /health) |
-| Pydantic models | 15 |
+| API endpoints | 3 (generation) + 15 (character manager + campaigns) |
+| Pydantic models | 15 (existing) + 10 (manager) |
 | Domain modules | 8 |
-| Test categories | 4 (unit, integration, API, data integrity) |
-| Estimated test cases | 110+ |
+| Persistence modules | 3 (new) |
+| Test categories | 4 (existing) + 5 (manager) |
+| Estimated test cases | 110+ (existing) + ~90 (manager) |
 | Coverage target | ≥ 85% overall |
-| Diagrams | 5 |
+| Diagrams | 5 (existing) + 10 (manager) |
 | PDF form fields | ~155 (across 2 pages) |
+| Specification documents | 6 |
 
 ---
 

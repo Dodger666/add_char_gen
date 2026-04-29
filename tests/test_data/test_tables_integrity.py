@@ -100,8 +100,9 @@ class TestClassTables:
         for cls in ClassName:
             assert cls in CLASS_THAC0
             thac0, bthb = CLASS_THAC0[cls]
-            assert 19 <= thac0 <= 21
-            assert -1 <= bthb <= 1
+            # OSRIC: all classes start at THAC0 20 / BTHB 0 at level 1
+            assert thac0 == 20
+            assert bthb == 0
 
     def test_all_classes_have_armor_restrictions(self) -> None:
         for cls in ClassName:

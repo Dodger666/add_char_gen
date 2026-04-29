@@ -930,7 +930,7 @@ generateCharacter();
 """
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/generator", response_class=HTMLResponse)
 async def character_sheet_page() -> HTMLResponse:
-    """Serve the character sheet front-end page."""
+    """Serve the random character generator front-end page."""
     return HTMLResponse(content=_HTML_PAGE)
