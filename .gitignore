@@ -18,3 +18,8 @@ htmlcov/
 
 # Generated files
 *.pdf
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
